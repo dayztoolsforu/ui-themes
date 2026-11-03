@@ -1,7 +1,7 @@
 {
   "id": "liquid-glass",
   "name": "macOS Liquid Glass",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "prefix": "lg-",
   "files": ["assets/liquid-glass.css", "assets/liquid-glass.js"],
   "css": ["liquid-glass.css"],

@@ -195,7 +195,7 @@
   .mm-btn { position: absolute; left: 28px; top: 28px; transition: opacity 120ms ease; }
   [data-open] .mm-btn { opacity: 0; pointer-events: none; }
   .mm-items { position: absolute; left: 30px; top: 30px; width: 208px; display: flex; flex-direction: column; opacity: 0; transform: translateY(-4px); transition: opacity 150ms ease, transform var(--lg-dur-smooth) var(--lg-spring-smooth); pointer-events: none; }
-  [data-open] .mm-items { opacity: 1; transform: none; transition-delay: 80ms; pointer-events: auto; }
+  [data-open] .mm-items { opacity: 1; transform: none; transition-delay: 130ms; pointer-events: auto; } /* once the glass has room */
   .badge, .mdrop-icon { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; display: grid; place-items: center; }
   .badge { width: 52px; height: 52px; color: #fff; transform: translate(var(--x), var(--y)) scale(var(--s, 0)); transform-origin: 0 0; }
   .badge::before { content: ""; position: absolute; inset: 2px; background: var(--c); clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); }
@@ -714,6 +714,7 @@
   const autoMorph = document.getElementById("autoMorph");
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) autoMorph.checked = false;
   const toggles = [];
+  window.lgGalleryToggles = toggles; // lets screen recordings step the demos
   const glassOf = (host) => host.querySelector(".lg-glass");
   const shadowOf = (host) => host.querySelector(".lq-shadow i");
   const setOpen = (host, open) => {

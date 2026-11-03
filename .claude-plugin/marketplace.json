@@ -7,7 +7,7 @@
       "name": "ui-themes",
       "source": "./",
       "description": "Drop-in UI themes for web apps: macOS Liquid Glass, plus a template for new themes.",
-      "version": "0.2.1"
+      "version": "0.2.2"
     }
   ]
 }

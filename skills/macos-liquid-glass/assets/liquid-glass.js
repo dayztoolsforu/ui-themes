@@ -288,7 +288,7 @@
     const from = el._lgLens ?? 1, t0 = performance.now();
     if (ms <= 0 || stillMotion()) return lensLevel(el, to);
     const step = () => {
-      const p = Math.min(Math.max((performance.now() - t0) / ms, 0), 1), e = p * p * (3 - 2 * p);
+      const p = Math.min(Math.max(((performance.now() - t0) * window.LiquidGlass.timeScale) / ms, 0), 1), e = p * p * (3 - 2 * p);
       lensLevel(el, from + (to - from) * e);
       if (p < 1) el._lgLensAnim = requestAnimationFrame(step);
     };
@@ -407,12 +407,25 @@
     const d = contourPath(sd, w, h);
     // The glass takes the outline as a vector SVG mask: Chromium clips backdrop-filter to a clip-path's
     // bounding box only, but masks clip it exactly. The shadow (no backdrop) can use the cheaper clip-path.
+    // Content is clipped by the vector clip-path (applies the same frame). The backdrop needs the mask too
+    // (Chromium clips backdrop-filter to a clip-path's bounding box only); a new mask image is decoded
+    // before it is swapped in, so there is never a frame without one.
+    const clip = d ? `path(evenodd, "${d}")` : "inset(50%)";
+    el.style.clipPath = clip;
+    if (el._lgShadowEl) el._lgShadowEl.style.clipPath = clip;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path fill-rule="evenodd" d="${d}"/></svg>`;
-    const mask = d ? `url("data:image/svg+xml,${encodeURIComponent(svg)}")` : "linear-gradient(transparent, transparent)";
-    el.style.webkitMaskImage = el.style.maskImage = mask;
-    el.style.webkitMaskSize = el.style.maskSize = "100% 100%";
-    el.style.webkitMaskRepeat = el.style.maskRepeat = "no-repeat";
-    if (el._lgShadowEl) el._lgShadowEl.style.clipPath = d ? `path(evenodd, "${d}")` : "inset(50%)";
+    const src = `data:image/svg+xml,${encodeURIComponent(svg)}`, seq = (el._lgMaskSeq = (el._lgMaskSeq || 0) + 1);
+    const swap = () => {
+      if (seq !== el._lgMaskSeq) return; // a newer outline arrived meanwhile
+      el.style.webkitMaskImage = el.style.maskImage = d ? `url("${src}")` : "linear-gradient(transparent, transparent)";
+      el.style.webkitMaskSize = el.style.maskSize = "100% 100%";
+      el.style.webkitMaskRepeat = el.style.maskRepeat = "no-repeat";
+    };
+    if (!el.style.maskImage) swap(); // first outline: nothing to hold on to
+    const img = new Image();
+    img.src = src;
+    img.decode().then(swap, swap);
+
     const rim = rimFor(el);
     if (rim.w !== w || rim.h !== h) { // light direction across the box
       rim.w = w; rim.h = h;
@@ -564,7 +577,7 @@
     }
 
     function tick(t) {
-      const dt = last ? Math.min((t - last) / 1000, 1 / 30) : 1 / 60;
+      const dt = (last ? Math.min((t - last) / 1000, 1 / 30) : 1 / 60) * window.LiquidGlass.timeScale;
       last = t;
       const n = Math.max(1, Math.ceil(dt * 240)), h = dt / n;
       let busy = false;
@@ -618,6 +631,8 @@
   }
 
   window.LiquidGlass = {
+    // slow motion for debugging or screen recording (0.25 = quarter speed); scales springs, lens and materialize
+    timeScale: 1,
     canRefract,
     shapes,
     liquid,
@@ -650,7 +665,7 @@
       cancelAnimationFrame(el._lgMat);
       if (show) el.hidden = false;
       const step = () => {
-        const p = stillMotion() ? 1 : Math.min(Math.max((performance.now() - t0) / ms, 0), 1), e = 1 - Math.pow(1 - p, 3);
+        const p = stillMotion() ? 1 : Math.min(Math.max(((performance.now() - t0) * window.LiquidGlass.timeScale) / ms, 0), 1), e = 1 - Math.pow(1 - p, 3);
         el._lgK = from + (to - from) * e;
         el.style.setProperty("--lg-k", el._lgK.toFixed(3));
         // the glass fades out over the last third (smoothstep), so it is gone before it is hidden — no pop;
