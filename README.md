@@ -47,11 +47,6 @@ Every edge rides its own spring, so glass stretches as it moves, thins as it gro
 | <img src="docs/images/toolbar.gif" alt="A plus button stretching into a toolbar of four tools" width="420"><br><sub>A button stretches into a toolbar</sub> | <img src="docs/images/menu.gif" alt="A menu pouring out of its button and shrinking back" width="420"><br><sub>Menus pour out of their button</sub> |
 | <img src="docs/images/search.gif" alt="A search button opening into a search field" width="420"><br><sub>Search opens into a field</sub> | <img src="docs/images/materialize.gif" alt="A Saved to Library badge materializing and dissolving" width="420"><br><sub>Glass materializes instead of fading</sub> |
 
-<p align="center">
-  <img src="docs/images/badges.gif" alt="Badges growing out of their button, rebuilt from Apple's Landmarks sample values" width="300"><br>
-  <sub>Badges grow out of their button, rebuilt from the values in Apple's Landmarks sample</sub>
-</p>
-
 ## Real refraction and light
 
 The rim of every glass element bends what's behind it, like a thick lens, while the middle stays readable. A highlight runs along the edge facing the light, with a fainter reflection on the far side, and the glass lights up under your pointer.
