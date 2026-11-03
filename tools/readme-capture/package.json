@@ -1,0 +1,7 @@
+﻿{
+  "name": "readme-capture",
+  "private": true,
+  "type": "module",
+  "description": "Records the README screenshots and GIFs from the gallery, the demo window and a sample app.",
+  "dependencies": { "puppeteer-core": "^23.0.0", "gifenc": "^1.0.3", "pngjs": "^7.0.0" }
+}
