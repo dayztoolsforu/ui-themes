@@ -42,7 +42,7 @@ const still = async (page, sel, name, opts = {}) => {
 // `script` is a list of [framesAt40ms, actionBefore] steps; actions run in the page.
 const SLOW = 0.2;
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-async function record(page, sel, name, script, { scale = 1, slow = SLOW } = {}) {
+async function record(page, sel, name, script, { scale = 1, slow = SLOW, pad = null } = {}) {
   const el = await page.$(sel);
   await el.scrollIntoView();
   await sleep(700);
@@ -54,7 +54,11 @@ async function record(page, sel, name, script, { scale = 1, slow = SLOW } = {}) 
   let run = true;
   const t0 = Date.now();
   const loop = (async () => {
-    while (run) shots.push({ t: (Date.now() - t0) * slow, buf: await el.screenshot({ captureBeyondViewport: false }) });
+    // pad: crop a box around the element instead of the element itself (document coordinates)
+    let clip = null;
+    if (pad != null) { const b = await el.boundingBox(), sy = await page.evaluate(() => scrollY), sx = await page.evaluate(() => scrollX);
+      clip = { x: b.x + sx - pad.x, y: b.y + sy - pad.y, width: b.width + pad.x * 2, height: b.height + pad.y * 2 }; }
+    while (run) shots.push({ t: (Date.now() - t0) * slow, buf: clip ? await page.screenshot({ clip }) : await el.screenshot({ captureBeyondViewport: false }) });
   })();
   for (const [count, action] of script) {
     if (action) await action(page);
@@ -132,6 +136,11 @@ const jobs = {
     await pick("Sidebar, menu and popover", "sidebar-menu.png");
     await p.close();
   },
+  async badges() {
+    const p = await open("gallery-cap.html", { w: 1200, h: 1000, dpr: 2 });
+    await record(p, "#qBadges", "badges.gif", [hold(10), [24, toggle(3)], hold(18), [24, toggle(3)], hold(8)], { scale: 0.5, slow: 0.15, pad: { x: 70, y: 34 } });
+    await p.close();
+  },
   async gifs() {
     const p = await open("gallery-cap.html", { w: 1200, h: 1000, dpr: 2 });
     const cell = (id) => `#${id}`;
@@ -154,7 +163,8 @@ const jobs = {
     await rec("qExpand", "toolbar.gif", [hold(10), [18, toggle(0)], hold(16), [18, toggle(0)], hold(8)]);
     await rec("qSearch", "search.gif", [hold(10), [16, toggle(1)], hold(16), [16, toggle(1)], hold(8)]);
     await rec("qMenu", "menu.gif", [hold(10), [18, toggle(2)], hold(18), [18, toggle(2)], hold(8)]);
-    await rec("qBadges", "badges.gif", [hold(10), [24, toggle(3)], hold(18), [24, toggle(3)], hold(8)], 0.1, 0.45);
+    await p.evaluate(() => document.getElementById("qBadges").setAttribute("data-rec", ""));
+    await record(p, "#qBadges", "badges.gif", [hold(10), [24, toggle(3)], hold(18), [24, toggle(3)], hold(8)], { scale: 0.5, slow: 0.15, pad: { x: 70, y: 34 } });
     await rec("qMat", "materialize.gif", [hold(12), [14, toggle(5)], hold(10), [14, toggle(5)], hold(10)]);
     await p.close();
   },
