@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Liquid Glass Kit</title>
+<link rel="stylesheet" href="liquid-glass.css">
+<style>
+  /* Layout: floating glass control bar over a column of labelled "stages"; each stage has a wallpaper so the glass has something to bend. */
+  :root {
+    --page-bg: #eceef4;
+    --page-fg: #1b1d24;
+    --page-muted: #5d6172;
+    --page-line: rgba(27, 29, 36, 0.1);
+    --code-bg: rgba(27, 29, 36, 0.06);
+    --font-ui: var(--lg-font);
+    --font-code: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page-bg: #111216; --page-fg: #eceef4; --page-muted: #9a9eae; --page-line: rgba(236, 238, 244, 0.1); --code-bg: rgba(236, 238, 244, 0.08);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page-bg: #111216; --page-fg: #eceef4; --page-muted: #9a9eae; --page-line: rgba(236, 238, 244, 0.1); --code-bg: rgba(236, 238, 244, 0.08);
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; /* the preview behaves like an app, not a document */ background: var(--page-bg); color: var(--page-fg);
+    font: 400 13px/16px var(--font-ui); letter-spacing: -0.006em; -webkit-font-smoothing: antialiased; /* macOS Body */
+    padding: 0 16px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding-block: 24px 64px; display: flex; flex-direction: column; gap: 40px; }
+
+  header.intro { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; }
+  header.intro h1 { font: 700 26px/32px var(--font-ui); letter-spacing: 0.008em; margin: 0; text-wrap: balance; } /* Large Title, emphasized */
+  header.intro p { margin: 0; color: var(--page-muted); max-width: 62ch; }
+
+  /* control bar: the page's own toolbar, built from the kit */
+  .bar {
+    position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); z-index: 20;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    padding: 6px; border-radius: 999px; width: fit-content; max-width: 100%; box-sizing: border-box;
+  }
+  .bar .lbl { font-size: 11px; font-weight: 600; color: var(--lg-label-secondary); padding-left: 10px; }
+  .bar .lg-segmented { height: 30px; }
+  .bar .lg-segmented button { padding: 0 12px; font-size: 11px; }
+  .force { display: flex; align-items: center; gap: 8px; padding: 0 10px 0 6px; font-size: 11px; font-weight: 500; }
+  .note {
+    font-size: 13px; color: var(--page-muted); margin: -24px 0 0; max-width: 70ch;
+  }
+
+  section { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  section > h2 { font: 700 22px/26px var(--font-ui); letter-spacing: -0.012em; margin: 0; text-wrap: balance; } /* Title 1, emphasized */
+  section > p { margin: 0; color: var(--page-muted); max-width: 70ch; }
+  code { font: 11px var(--font-code); background: var(--code-bg); padding: 1px 6px; border-radius: 6px; white-space: nowrap; }
+
+  .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+
+  /* stage = wallpaper the specimens float over */
+  .stage {
+    position: relative; overflow: hidden; border-radius: 20px; min-width: 0;
+    padding: 32px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px;
+    background: var(--wall); outline: 1px solid var(--page-line); outline-offset: -1px;
+    font: 400 13px/16px var(--lg-font); letter-spacing: -0.006em; color: var(--lg-label);
+  }
+  .stage.col { flex-direction: column; }
+  .stage .cap {
+    position: absolute; left: 12px; top: 10px; font: 600 11px var(--font-code); color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,.5); opacity: .85;
+  }
+  .spec { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .spec > span { font: 11px var(--font-code); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.55); }
+
+  :root { --wall: radial-gradient(60% 90% at 8% 0%, #ff9a62 0, transparent 60%), radial-gradient(55% 80% at 95% 15%, #7b6cff 0, transparent 60%), radial-gradient(70% 80% at 55% 110%, #19c3c9 0, transparent 60%), #3b4070; }
+  :root[data-wall="photo"] { --wall: radial-gradient(30% 40% at 72% 30%, #fff2b8 0, #ffc46b 30%, transparent 60%), linear-gradient(170deg, #2a5bd7 0%, #ff8a5c 55%, #ffd27a 62%, #2b2f4a 63%, #151826 100%); }
+  :root[data-wall="stripes"] { --wall: repeating-linear-gradient(90deg, #1c1d22 0 12px, #f4f4f6 12px 24px); }
+  :root[data-wall="plain"] { --wall: var(--lg-window-bg); }
+
+  /* specimen sizing */
+  .swatch { width: 150px; height: 96px; border-radius: 18px; display: grid; place-items: center; font-weight: 600; }
+  .lg-material-ultrathin, .lg-material-thin, .lg-material-regular, .lg-material-thick { color: var(--lg-label); }
+  .media { width: 100%; max-width: 420px; height: 150px; border-radius: 16px; position: relative; overflow: hidden;
+    background: radial-gradient(circle at 30% 40%, #ffe08a, #ff6b6b 40%, #6a3dff 85%); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 14px; box-sizing: border-box; gap: 8px; }
+  .media.lg-dim::after { border-radius: inherit; }
+  .media > * { position: relative; z-index: 1; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; }
+  .tb-stage { padding: 0; height: 96px; display: block; --lg-sidebar-w: 0px; }
+  .tb-stage .lg-toolbar { left: 8px; right: 8px; top: 28px; flex-wrap: nowrap; }
+  .tb-stage .lg-toolbar-title { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+  .side-stage { justify-content: flex-start; align-items: stretch; padding: 20px; min-height: 340px; }
+  .side-stage .lg-sidebar { margin: 0; }
+  .sheet-stage { min-height: 300px; padding: 0; display: block; }
+  .sheet-stage .lg-sheet-backdrop { padding-top: 40px; }
+  .controls-card { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; border-radius: 18px; width: min(320px, 100%); box-sizing: border-box; }
+  .controls-card .r { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .win-stage { padding: 20px; display: block; }
+  .win-stage .lg-window { width: 100%; height: 480px; }
+  .win-stage .lg-content { padding-bottom: 80px; scroll-behavior: auto; }
+  .win-stage .tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; margin-bottom: 24px; }
+  .win-stage .tile { aspect-ratio: 1; border-radius: 6px; position: relative; overflow: hidden; }
+  .win-stage .tile::after { /* a horizon line so bending shows */
+    content: ""; position: absolute; left: 0; right: 0; top: 58%; height: 2px; background: rgba(255,255,255,.55);
+  }
+  .feed-hero {
+    height: 220px; border-radius: 14px; margin-bottom: 12px; display: flex; align-items: flex-end; padding: 18px; box-sizing: border-box;
+    background: radial-gradient(28% 40% at 74% 34%, #fff3c4 0, #ffc46b 30%, transparent 62%), linear-gradient(175deg, #2a5bd7 0%, #ff8a5c 56%, #ffd27a 62%, #253048 63%, #121626 100%);
+    color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.35);
+  }
+  .feed-hero small { display: block; font: 600 11px/14px var(--lg-font); letter-spacing: 0.006em; opacity: .85; } /* Subheadline */
+  .feed-hero strong { font: 700 26px/32px var(--lg-font); letter-spacing: 0.008em; } /* Large Title */
+  .feed-text { max-width: 60ch; margin-bottom: 24px; }
+  .feed-text h3 { margin: 0 0 6px; font: 700 17px/22px var(--lg-font); letter-spacing: -0.026em; } /* Title 2 */
+  .feed-text p { margin: 0 0 8px; font: 400 13px/16px var(--lg-font); letter-spacing: -0.006em; color: var(--lg-label); } /* Body */
+  .stripe-band { height: 90px; border-radius: 10px; margin-bottom: 24px; background: repeating-linear-gradient(90deg, #15161b 0 14px, #f3f3f5 14px 28px); }
+  .float-bar {
+    position: absolute; z-index: 3; bottom: 14px; left: calc(var(--lg-sidebar-w) + 2 * var(--lg-inset) + (100% - var(--lg-sidebar-w) - 2 * var(--lg-inset)) / 2);
+    transform: translateX(-50%); padding: 5px 11px; border-radius: 999px;
+  }
+  .float-bar .lg-segmented { background: transparent; height: 32px; }
+  .auto { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; }
+  @media (max-width: 640px) {
+    .win-stage .lg-window { --lg-sidebar-w: 0px; }
+    .win-stage .lg-sidebar { display: none; }
+    .tb-stage .lg-search { display: none; }
+    .bar { border-radius: 22px; }
+  }
+  .optics { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; }
+  .optics-stage { min-height: 360px; padding: 0; display: block; touch-action: none; }
+  .optics-bg {
+    position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding-left: 6%;
+    font: 800 clamp(64px, 11vw, 128px)/0.9 var(--lg-font); letter-spacing: -0.04em; color: #fff;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,.5) 0 2px, transparent 2px 28px), repeating-linear-gradient(90deg, rgba(255,255,255,.5) 0 2px, transparent 2px 28px);
+    text-shadow: 0 2px 20px rgba(0,0,0,.25); user-select: none;
+  }
+  .optics-bg span:last-child { color: #ffd36b; }
+  .lens {
+    position: absolute; left: 34%; top: 80px; width: 300px; max-width: calc(100% - 32px); height: 180px; border-radius: 48px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: grab;
+    --lg-fill: rgba(255, 255, 255, 0.08); --lg-blur: 1.5px; --lg-dispersion: 0.04; --lg-refraction: 26; --lg-bezel: 30px;
+    touch-action: none; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  }
+  .lens:active { cursor: grabbing; }
+  .lens strong { font: 700 13px/16px var(--lg-font); } /* Headline */
+  .lens small { opacity: 0.85; }
+  .lens:focus-visible { outline: 3px solid color-mix(in srgb, var(--lg-accent) 60%, transparent); outline-offset: 3px; }
+  .optics-panel {
+    display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: 20px;
+    background: var(--code-bg); min-width: 0;
+  }
+  .optics-panel label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; margin-top: 6px; }
+  .optics-panel output { color: var(--page-muted); font-variant-numeric: tabular-nums; }
+  .optics-panel .lg-slider { --lg-fill-control-hover: var(--page-line); }
+  .optics-hint { font-size: 11px; color: var(--page-muted); margin: 10px 0 0; }
+  @media (max-width: 760px) { .optics { grid-template-columns: 1fr; } .lens { left: 16px; } }
+  /* typography ramp */
+  .type-ramp { display: flex; flex-direction: column; border-top: 1px solid var(--page-line); }
+  .type-row { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 16px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--page-line); }
+  .type-row .sample { min-width: 0; overflow-wrap: anywhere; }
+  .type-row .sample b { font-weight: var(--lg-em-weight); }
+  .type-row .meta { font: 400 11px/14px var(--font-ui); letter-spacing: 0.006em; color: var(--page-muted); font-variant-numeric: tabular-nums; }
+  .type-row .meta strong { display: block; color: var(--page-fg); font-weight: 600; }
+  @media (max-width: 560px) { .type-row { grid-template-columns: 1fr; gap: 4px; } }
+
+  /* grow and shrink */
+  .morph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .cell { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .cell.tall { grid-row: span 2; }
+  .cell.tall .morph-stage { height: auto; flex: 1; min-height: 400px; }
+  .cell figcaption { display: flex; flex-direction: column; gap: 2px; }
+  .cell figcaption strong { font: 700 13px/16px var(--font-ui); }
+  .cell figcaption span { font: 400 11px/14px var(--font-ui); color: var(--page-muted); }
+  .morph-stage { height: 220px; padding: 0 20px; box-sizing: border-box; }
+  .morph-stage.top { align-items: flex-start; padding-top: 34px; }
+  /* liquid host: fixed box; the script draws the glass outline inside it as a mask */
+  .lq { position: relative; flex: none; max-width: 100%; }
+  .lq > .lg-glass { position: absolute; inset: -24px; border-radius: 0; box-shadow: none; } /* overhang = liquid pad */
+  .lq-shadow { position: absolute; inset: -24px; filter: blur(9px); transform: translateY(5px); opacity: 0.5; pointer-events: none; transition: opacity 260ms ease; }
+  .lq-shadow i { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+  .lq-row { display: flex; align-items: center; padding: 28px; box-sizing: border-box; gap: 0; }
+  .lq-hit { position: relative; z-index: 2; }
+  .lq-cover { position: absolute; inset: 0; background: none; border: 0; cursor: pointer; }
+  .lq .lg-btn--icon.lq-hit, .mx-tools .lg-btn, .mm-btn { width: 36px; height: 36px; flex: none; }
+  .mx-toggle { transition: transform var(--lg-dur-snappy) var(--lg-spring-snappy); }
+  [data-open] .mx-toggle { transform: rotate(45deg); }
+  .mx-tools { display: flex; gap: 2px; }
+  .mx-tools .lg-btn { opacity: 0; transform: scale(0.5); transition: opacity 140ms ease, transform var(--lg-dur-bouncy) var(--lg-spring-bouncy); }
+  [data-open] .mx-tools .lg-btn { opacity: 1; transform: none; transition-delay: calc(var(--d) * 28ms + 30ms); }
+  .lq-row input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: 400 13px/16px var(--lg-font); letter-spacing: -0.006em; color: var(--lg-label); opacity: 0; transition: opacity 160ms ease; }
+  .lq-row input::placeholder { color: var(--lg-label-secondary); }
+  [data-open] .lq-row input { opacity: 1; transition-delay: 90ms; }
+  .mm { padding: 28px; box-sizing: border-box; }
+  .mm-btn { position: absolute; left: 28px; top: 28px; transition: opacity 120ms ease; }
+  [data-open] .mm-btn { opacity: 0; pointer-events: none; }
+  .mm-items { position: absolute; left: 30px; top: 30px; width: 208px; display: flex; flex-direction: column; opacity: 0; transform: translateY(-4px); transition: opacity 150ms ease, transform var(--lg-dur-smooth) var(--lg-spring-smooth); pointer-events: none; }
+  [data-open] .mm-items { opacity: 1; transform: none; transition-delay: 80ms; pointer-events: auto; }
+  .badge, .mdrop-icon { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; display: grid; place-items: center; }
+  .badge { width: 52px; height: 52px; color: #fff; transform: translate(var(--x), var(--y)) scale(var(--s, 0)); transform-origin: 0 0; }
+  .badge::before { content: ""; position: absolute; inset: 2px; background: var(--c); clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); }
+  .badge svg { position: relative; width: 24px; height: 24px; }
+  .badge-toggle { position: absolute; left: 16px; bottom: 0; width: 44px; height: 44px; border: 0; background: none; color: var(--lg-label); cursor: pointer; display: grid; place-items: center; }
+  .badge-toggle svg { width: 18px; height: 18px; grid-area: 1 / 1; transition: opacity 150ms ease, transform var(--lg-dur-bouncy) var(--lg-spring-bouncy); }
+  .badge-toggle .ic-close, [data-open] .badge-toggle .ic-open { opacity: 0; transform: scale(0.5) rotate(-45deg); }
+  [data-open] .badge-toggle .ic-close { opacity: 1; transform: none; }
+  .mdrop-icon { width: 20px; height: 20px; color: var(--lg-label); transform: translate(var(--x), var(--y)); }
+  .mdrop-icon svg { width: 20px; height: 20px; }
+  #qDrop { cursor: grab; touch-action: none; }
+  #qDrop:active { cursor: grabbing; }
+  .mmat { justify-content: center; gap: 8px; font: 600 13px/16px var(--lg-font); }
+  .mmat svg { width: 16px; height: 16px; color: var(--lg-green); }
+  .mmat svg, .mmat span { opacity: var(--lg-k-content, 1); }
+  .msz { font: 500 13px/1 var(--lg-font); color: var(--lg-label); transition: font-size var(--lg-dur-smooth) var(--lg-spring-smooth); }
+  .inactive .lg-traffic button { background: var(--lg-label-tertiary) !important; }
+  input, textarea { -webkit-user-select: text; user-select: text; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="intro">
+    <h1>Liquid Glass Kit</h1>
+    <p>Every component in the <code>macos-liquid-glass</code> skill, floating over a wallpaper. Change the theme and the wallpaper to see how the glass reacts.</p>
+  </header>
+
+  <div class="bar lg-glass" role="toolbar" aria-label="Preview settings">
+    <span class="lbl">Theme</span>
+    <div class="lg-segmented" style="--n:3; --i:0" data-seg="theme">
+      <span class="lg-thumb"></span><button data-v="">Auto</button><button data-v="light">Light</button><button data-v="dark">Dark</button>
+    </div>
+    <span class="lbl">Wallpaper</span>
+    <div class="lg-segmented" style="--n:4; --i:0" data-seg="wall">
+      <span class="lg-thumb"></span><button data-v="">Aurora</button><button data-v="photo">Photo</button><button data-v="stripes">Stripes</button><button data-v="plain">Plain</button>
+    </div>
+    <label class="force" id="forceWrap" hidden>
+      <span class="lg-toggle"><input type="checkbox" id="force"><span class="track"></span><span class="knob"></span></span>
+      Show glass
+    </label>
+  </div>
+  <p class="note" id="forceNote" hidden>Your system is set to reduce transparency, so the glass shows as solid panels. That is the kit's accessibility fallback. Turn on Show glass to preview the real material.</p>
+
+  <!-- Typography -->
+  <section>
+    <h2>Typography</h2>
+    <p>The eleven macOS text styles from Apple's typography guidelines. Sizes are fixed on the Mac; 13 px Body is the default and 10 px is the smallest. Spacing follows the SF Pro tracking table. SF Pro only ships on Apple devices, so other systems show the closest system font.</p>
+    <div class="type-ramp" id="typeRamp"></div>
+  </section>
+
+  <!-- Materials -->
+  <section>
+    <h2>Materials</h2>
+    <p>Regular glass for anything with text. Clear glass only over photos or video, with a 35% dimming layer when the image is bright. Content-layer materials are for cards and backgrounds, not controls.</p>
+    <div class="pair">
+      <div class="stage">
+        <span class="cap">Liquid Glass</span>
+        <div class="spec"><div class="swatch lg-glass" data-lg-optics>Regular</div><span>.lg-glass</span></div>
+        <div class="spec"><div class="swatch lg-glass lg-glass--clear" data-lg-optics>Clear</div><span>.lg-glass--clear</span></div>
+      </div>
+      <div class="stage">
+        <span class="cap">Content materials</span>
+        <div class="spec"><div class="swatch lg-material-ultrathin" style="width:96px">Ultra thin</div><span>-ultrathin</span></div>
+        <div class="spec"><div class="swatch lg-material-thin" style="width:96px">Thin</div><span>-thin</span></div>
+        <div class="spec"><div class="swatch lg-material-regular" style="width:96px">Regular</div><span>-regular</span></div>
+        <div class="spec"><div class="swatch lg-material-thick" style="width:96px">Thick</div><span>-thick</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Optics -->
+  <section>
+    <h2>Refraction and reflection</h2>
+    <p>The curved edge bends what is behind it, like a thick lens, while the middle stays flat and readable. A highlight runs along the rim on the side facing the light, with a fainter reflection on the far edge. Drag the lens around and change the settings.</p>
+    <div class="optics">
+      <div class="stage optics-stage" id="opticsStage">
+        <div class="optics-bg" aria-hidden="true"><span>Liquid</span><span>Glass</span></div>
+        <div class="lens lg-glass" data-lg-optics id="lens" tabindex="0" aria-label="Glass lens, drag to move">
+          <strong>Drag me</strong>
+          <small id="lensNote">Edges refract</small>
+        </div>
+      </div>
+      <div class="optics-panel">
+        <label for="oRefr">Refraction <output id="oRefrV">26 px</output></label>
+        <input class="lg-slider" type="range" id="oRefr" min="0" max="40" value="26" data-token="--lg-refraction" data-unit="" data-fmt=" px">
+        <label for="oBezel">Edge width <output id="oBezelV">30 px</output></label>
+        <input class="lg-slider" type="range" id="oBezel" min="4" max="60" value="30" data-token="--lg-bezel" data-unit="px" data-fmt=" px">
+        <label for="oDisp">Colour fringing <output id="oDispV">0.04</output></label>
+        <input class="lg-slider" type="range" id="oDisp" min="0" max="0.15" step="0.01" value="0.04" data-token="--lg-dispersion" data-unit="" data-fmt="">
+        <label for="oAngle">Light direction <output id="oAngleV">-135°</output></label>
+        <input class="lg-slider" type="range" id="oAngle" min="-180" max="180" value="-135" data-token="--lg-light-angle" data-unit="deg" data-fmt="°">
+        <label for="oSpec">Highlight <output id="oSpecV">0.9</output></label>
+        <input class="lg-slider" type="range" id="oSpec" min="0" max="1" step="0.05" value="0.9" data-token="--lg-specular" data-unit="" data-fmt="" data-live>
+        <p class="optics-hint" id="opticsHint">Refraction needs a Chromium browser (Chrome, Edge, Brave, Arc). This browser shows the frost and highlights only.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Grow and shrink -->
+  <section>
+    <h2>Grow and shrink</h2>
+    <p>Liquid Glass warps as it changes. The edge in front moves first and the edge behind catches up, so glass stretches, overshoots and wobbles into place. Shapes closer than the container spacing melt together through a liquid neck that thins and snaps as they separate. Drag a droplet away to pull on it.</p>
+    <label class="auto">
+      <span class="lg-toggle"><input type="checkbox" id="autoMorph" checked><span class="track"></span><span class="knob"></span></span>
+      Play automatically
+    </label>
+    <div class="morph-grid">
+
+      <figure class="cell tall">
+        <div class="stage morph-stage">
+          <div class="lq" id="qBadges" style="width:76px;height:320px">
+            <div class="lq-shadow"><i></i></div>
+            <div class="lg-glass" data-lg-optics data-lg-light-from="parent"></div>
+            <span class="badge" data-i="0" style="--c:var(--lg-orange)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l1.9 4.6 5 .4-3.8 3.3 1.2 4.9L12 13.6 7.7 16.2l1.2-4.9L5.1 8l5-.4z"/></svg></span>
+            <span class="badge" data-i="1" style="--c:var(--lg-teal)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18l6-9 4 6 3-4 5 7z"/></svg></span>
+            <span class="badge" data-i="2" style="--c:var(--lg-indigo)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-3 4-6 6.5-6 10a6 6 0 0 0 12 0c0-3.5-3-6-6-10z"/></svg></span>
+            <button class="lq-hit badge-toggle" aria-label="Show Badges" aria-expanded="false">
+              <svg class="ic-open" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z"/></svg>
+              <svg class="ic-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+        </div>
+        <figcaption><strong>Badges grow out of their button</strong><span>From Apple's Landmarks sample: <code>GlassEffectContainer(spacing: 16)</code>, badges 76 pt, radius 24, 14 pt apart, so they stay joined</span></figcaption>
+      </figure>
+
+      <figure class="cell">
+        <div class="stage morph-stage">
+          <div class="lq" id="qExpand" style="width:194px;height:44px">
+            <div class="lq-shadow"><i></i></div>
+            <div class="lg-glass lq-row" data-lg-optics data-lg-light-from="parent">
+              <button class="lq-hit lg-btn lg-btn--icon mx-toggle" aria-label="Show tools" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg></button>
+              <span class="mx-tools">
+                <button class="lg-btn lg-btn--icon" style="--d:0" aria-label="Pencil" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button>
+                <button class="lg-btn lg-btn--icon" style="--d:1" aria-label="Text" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 6h14M12 6v13"/></svg></button>
+                <button class="lg-btn lg-btn--icon" style="--d:2" aria-label="Shapes" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="9" height="9" rx="2"/><circle cx="16" cy="16" r="4.5"/></svg></button>
+                <button class="lg-btn lg-btn--icon" style="--d:3" aria-label="Signature" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 17c3-6 5-9 7-9s0 9 2 9 3-5 5-5 2 3 4 3"/></svg></button>
+              </span>
+            </div>
+          </div>
+        </div>
+        <figcaption><strong>Button stretches into a toolbar</strong><span>Leading edge springs ahead, the glass thins as it stretches</span></figcaption>
+      </figure>
+
+      <figure class="cell">
+        <div class="stage morph-stage">
+          <div class="lq" id="qSearch" style="width:250px;height:44px">
+            <div class="lq-shadow"><i></i></div>
+            <label class="lg-glass lq-row" data-lg-optics data-lg-light-from="parent">
+              <button class="lq-hit lg-btn lg-btn--icon ms-btn" aria-label="Search" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
+              <input type="search" id="mSearchInput" placeholder="Search Photos" aria-label="Search Photos" tabindex="-1">
+            </label>
+          </div>
+        </div>
+        <figcaption><strong>Search opens into a field</strong><span>Snappy spring</span></figcaption>
+      </figure>
+
+      <figure class="cell">
+        <div class="stage morph-stage top">
+          <div class="lq" id="qMenu" style="width:220px;height:142px">
+            <div class="lq-shadow"><i></i></div>
+            <div class="lg-glass mm" data-lg-optics data-lg-light-from="parent">
+              <button class="lq-hit lg-btn lg-btn--icon mm-btn" aria-label="More" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+              <div class="mm-items" role="menu">
+                <button class="lg-menu-item" role="menuitem" tabindex="-1">Rotate Left<kbd>⌘R</kbd></button>
+                <button class="lg-menu-item" role="menuitem" tabindex="-1">Duplicate<kbd>⌘D</kbd></button>
+                <button class="lg-menu-item" role="menuitem" tabindex="-1">Hide Photo<kbd>⌘L</kbd></button>
+                <div class="lg-menu-sep"></div>
+                <button class="lg-menu-item" role="menuitem" tabindex="-1">Delete Photo<kbd>⌘⌫</kbd></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption><strong>Menu pours out of its button</strong><span>Grows right and down at once, corners settle concentric</span></figcaption>
+      </figure>
+
+      <figure class="cell">
+        <div class="stage morph-stage">
+          <div class="lq" id="qDrop" style="width:300px;height:110px">
+            <div class="lq-shadow"><i></i></div>
+            <div class="lg-glass" data-lg-optics data-lg-light-from="parent" role="group" aria-label="Drawing tools, drag to pull apart"></div>
+            <span class="mdrop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span>
+            <span class="mdrop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M8 20h12M5 15l9-9 5 5-9 9H6z"/></svg></span>
+            <span class="mdrop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="8" stroke-dasharray="3 3"/></svg></span>
+          </div>
+        </div>
+        <figcaption><strong>Droplets melt and split</strong><span>Drag one out and let go · <code>GlassEffectContainer(spacing: 28)</code></span></figcaption>
+      </figure>
+
+      <figure class="cell">
+        <div class="stage morph-stage">
+          <div class="lq" id="qMat" style="width:190px;height:44px">
+            <div class="lq-shadow"><i></i></div>
+            <div class="lg-glass lq-row mmat" data-lg-optics data-lg-light-from="parent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Saved to Library</span></div>
+            <button class="lq-hit lq-cover" aria-label="Show or hide the badge"></button>
+          </div>
+        </div>
+        <figcaption><strong>Materialize</strong><span>Swells out of a point while its lensing ramps up</span></figcaption>
+      </figure>
+
+      <figure class="cell">
+        <div class="stage morph-stage">
+          <div class="lq" id="qSize" style="width:220px;height:44px">
+            <div class="lq-shadow"><i></i></div>
+            <div class="lg-glass" data-lg-optics data-lg-light-from="parent"></div>
+            <button class="lq-hit lq-cover msz" id="mSizeText">Continue</button>
+          </div>
+        </div>
+        <figcaption><strong>Control sizes</strong><span id="mSizeLabel">Regular · 24 px · rounded rectangle</span></figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- Buttons -->
+  <section>
+    <h2>Buttons</h2>
+    <p>Capsules everywhere. Tint only the one main action. Icon-only buttons always carry an <code>aria-label</code>.</p>
+    <div class="stage col">
+      <span class="cap">Standalone glass</span>
+      <div class="row">
+        <div class="spec"><button class="lg-btn lg-glass" data-lg-optics>Share</button><span>.lg-btn.lg-glass</span></div>
+        <div class="spec"><button class="lg-btn lg-glass lg-btn--icon" data-lg-optics aria-label="Add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg></button><span>+ .lg-btn--icon</span></div>
+        <div class="spec"><button class="lg-btn lg-btn--prominent" style="height:36px;padding:0 18px">Continue</button><span>.lg-btn--prominent</span></div>
+        <div class="spec"><button class="lg-btn lg-glass" data-lg-optics disabled>Disabled</button><span>:disabled</span></div>
+      </div>
+      <div class="row">
+        <div class="spec">
+          <div class="lg-group lg-glass" data-lg-optics>
+            <button class="lg-btn">Plain</button>
+            <button class="lg-btn lg-btn--icon" aria-label="Bold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button>
+            <button class="lg-btn lg-btn--icon" aria-label="Italic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 5h-4M14 19h-4M14 5l-4 14"/></svg></button>
+          </div>
+          <span>.lg-btn inside .lg-group (hover and press them)</span>
+        </div>
+      </div>
+      <div class="media lg-dim">
+        <button class="lg-btn lg-btn--icon lg-glass lg-glass--clear" data-lg-optics aria-label="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM20 6v12l-10-6z"/></svg></button>
+        <button class="lg-btn lg-btn--icon lg-glass lg-glass--clear" data-lg-optics aria-label="Play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="lg-btn lg-btn--icon lg-glass lg-glass--clear" data-lg-optics aria-label="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM4 6v12l10-6z"/></svg></button>
+      </div>
+      <div class="spec"><span>clear glass over media, on .lg-dim</span></div>
+    </div>
+  </section>
+
+  <!-- Toolbar -->
+  <section>
+    <h2>Toolbar</h2>
+    <p>Related actions share one capsule, groups sit apart with fixed space, and the bar itself has no background. Icons and text never mix inside a group.</p>
+    <div class="stage tb-stage">
+      <span class="cap">.lg-toolbar · .lg-group · .lg-search</span>
+      <header class="lg-toolbar">
+        <div class="lg-group lg-glass" data-lg-optics>
+          <button class="lg-btn lg-btn--icon" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg></button>
+          <button class="lg-btn lg-btn--icon" aria-label="Forward"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18l6-6-6-6"/></svg></button>
+        </div>
+        <span class="lg-toolbar-title">Documents</span>
+        <span class="lg-spacer"></span>
+        <div class="lg-group lg-glass" data-lg-optics>
+          <button class="lg-btn lg-btn--icon" aria-label="Share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg></button>
+          <button class="lg-btn lg-btn--icon" aria-label="Tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.5"/></svg></button>
+          <button class="lg-btn lg-btn--icon" aria-label="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+        </div>
+        <label class="lg-search lg-glass" data-lg-optics>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input type="search" id="tbSearch" placeholder="Search" aria-label="Search">
+        </label>
+      </header>
+    </div>
+  </section>
+
+  <!-- Controls -->
+  <section>
+    <h2>Controls</h2>
+    <p>Segmented thumbs glide on a spring. Toggle knobs and slider thumbs turn to glass while you hold them, then settle back.</p>
+    <div class="stage">
+      <span class="cap">.lg-segmented · .lg-toggle · .lg-slider</span>
+      <div class="controls-card lg-material-thick">
+        <div class="r"><div class="lg-segmented" style="--n:3; --i:1" data-seg="demo"><span class="lg-thumb"></span><button>Day</button><button>Week</button><button>Month</button></div></div>
+        <div class="r">Notifications <span class="lg-toggle"><input type="checkbox" id="t1" checked aria-label="Notifications"><span class="track"></span><span class="knob"></span></span></div>
+        <div class="r">Low Power Mode <span class="lg-toggle"><input type="checkbox" id="t2" aria-label="Low Power Mode"><span class="track"></span><span class="knob"></span></span></div>
+        <div class="r" style="flex-direction:column;align-items:stretch;gap:6px">Volume <input class="lg-slider" type="range" id="vol" value="62" aria-label="Volume"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sidebar + Menu + Popover -->
+  <section>
+    <h2>Sidebar, menu and popover</h2>
+    <p>The sidebar floats inset from the window edge. Section titles use title case. Menus highlight the hovered item with the accent colour and show shortcuts on the right.</p>
+    <div class="stage side-stage">
+      <span class="cap">.lg-sidebar · .lg-menu · .lg-popover</span>
+      <aside class="lg-sidebar lg-glass" data-lg-optics>
+        <div class="lg-sidebar-header">
+          <div class="lg-traffic" aria-label="Window controls">
+            <button class="close" aria-label="Close"><svg viewBox="0 0 8 8"><path d="M1.5 1.5l5 5M6.5 1.5l-5 5"/></svg></button>
+            <button class="min" aria-label="Minimise"><svg viewBox="0 0 8 8"><path d="M1 4h6"/></svg></button>
+            <button class="zoom" aria-label="Zoom"><svg viewBox="0 0 8 8"><path d="M2 6V2h4M6 2v4H2" fill="none"/></svg></button>
+          </div>
+        </div>
+        <div class="lg-section-title">Favourites</div>
+        <button class="lg-sidebar-item is-selected"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Documents</button>
+        <button class="lg-sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Downloads</button>
+        <button class="lg-sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8"/></svg>Desktop</button>
+        <div class="lg-section-title">Locations</div>
+        <button class="lg-sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1-1 8z"/></svg>Cloud Drive</button>
+        <button class="lg-sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 14h.01"/></svg>Backup Disk</button>
+      </aside>
+      <div style="display:flex;flex-direction:column;gap:20px;align-items:flex-start;flex:1;min-width:220px">
+        <div class="lg-menu lg-glass" role="menu" aria-label="File" data-lg-optics>
+          <button class="lg-menu-item" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 5v14M5 12h14"/></svg>New Folder<kbd>⇧⌘N</kbd></button>
+          <button class="lg-menu-item" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>Duplicate<kbd>⌘D</kbd></button>
+          <button class="lg-menu-item" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Rename</button>
+          <div class="lg-menu-sep"></div>
+          <button class="lg-menu-item" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Move to Bin<kbd>⌘⌫</kbd></button>
+        </div>
+        <div class="lg-popover lg-glass" data-lg-optics>
+          <strong>Shared with 3 people</strong>
+          <p style="margin:4px 0 12px;color:var(--lg-label-secondary)">Anyone with the link can view.</p>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="lg-btn" style="background:var(--lg-fill-control)">Copy Link</button>
+            <button class="lg-btn lg-btn--prominent">Invite</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sheet + window chrome -->
+  <section>
+    <h2>Sheet and window controls</h2>
+    <p>Sheets drop from under the toolbar with rounder corners and a thicker material. Window controls go grey when the window is inactive.</p>
+    <div class="pair">
+      <div class="stage sheet-stage">
+        <span class="cap">.lg-sheet</span>
+        <div class="lg-sheet-backdrop">
+          <div class="lg-sheet lg-glass" role="dialog" aria-labelledby="sheetT">
+            <strong id="sheetT" style="font-size:15px">Save changes to “Budget 2027”?</strong>
+            <p style="margin:6px 0 18px;color:var(--lg-label-secondary)">Your changes will be lost if you don’t save them.</p>
+            <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+              <button class="lg-btn" style="background:var(--lg-fill-control)">Don’t Save</button>
+              <button class="lg-btn" style="background:var(--lg-fill-control)">Cancel</button>
+              <button class="lg-btn lg-btn--prominent">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="stage col">
+        <span class="cap">.lg-traffic</span>
+        <div class="row">
+          <div class="spec"><div class="lg-group lg-glass" style="padding:0 12px"><div class="lg-traffic"><button class="close" aria-label="Close"><svg viewBox="0 0 8 8"><path d="M1.5 1.5l5 5M6.5 1.5l-5 5"/></svg></button><button class="min" aria-label="Minimise"><svg viewBox="0 0 8 8"><path d="M1 4h6"/></svg></button><button class="zoom" aria-label="Zoom"><svg viewBox="0 0 8 8"><path d="M2 6V2h4M6 2v4H2" fill="none"/></svg></button></div></div><span>active (hover for symbols)</span></div>
+          <div class="spec inactive"><div class="lg-group lg-glass" style="padding:0 12px"><div class="lg-traffic"><button class="close" aria-label="Close"></button><button class="min" aria-label="Minimise"></button><button class="zoom" aria-label="Zoom"></button></div></div><span>inactive</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Scrolling -->
+  <section>
+    <h2>Scrolling under glass</h2>
+    <p>Content runs underneath the toolbar and the floating bar at the bottom. As it scrolls past, the glass frosts it, bends it at the edges and catches light from it. Scroll the window, or leave Auto-scroll on and watch the edges of each bar.</p>
+    <label class="auto">
+      <span class="lg-toggle"><input type="checkbox" id="autoScroll" checked><span class="track"></span><span class="knob"></span></span>
+      Auto-scroll
+    </label>
+    <div class="stage win-stage">
+      <div class="lg-window">
+        <aside class="lg-sidebar lg-glass" data-lg-optics>
+          <div class="lg-sidebar-header">
+            <div class="lg-traffic"><button class="close" aria-label="Close"><svg viewBox="0 0 8 8"><path d="M1.5 1.5l5 5M6.5 1.5l-5 5"/></svg></button><button class="min" aria-label="Minimise"><svg viewBox="0 0 8 8"><path d="M1 4h6"/></svg></button><button class="zoom" aria-label="Zoom"><svg viewBox="0 0 8 8"><path d="M2 6V2h4M6 2v4H2" fill="none"/></svg></button></div>
+          </div>
+          <div class="lg-section-title">Library</div>
+          <button class="lg-sidebar-item is-selected"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>Library</button>
+          <button class="lg-sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Recents</button>
+          <button class="lg-sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 21s-7-4.5-7-11a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 6.5-7 11-7 11z"/></svg>Favourites</button>
+          <div class="lg-section-title">Albums</div>
+          <button class="lg-sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Lisbon, May</button>
+          <button class="lg-sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Coast Walks</button>
+        </aside>
+        <div class="lg-scroll-edge-top"></div>
+        <header class="lg-toolbar">
+          <div class="lg-group lg-glass" data-lg-optics>
+            <button class="lg-btn lg-btn--icon" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg></button>
+            <button class="lg-btn lg-btn--icon" aria-label="Forward"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18l6-6-6-6"/></svg></button>
+          </div>
+          <span class="lg-spacer"></span>
+          <div class="lg-group lg-glass" data-lg-optics>
+            <button class="lg-btn lg-btn--icon" aria-label="Share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg></button>
+            <button class="lg-btn lg-btn--icon" aria-label="Favourite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21s-7-4.5-7-11a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 6.5-7 11-7 11z"/></svg></button>
+          </div>
+          <label class="lg-search lg-glass" data-lg-optics>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+            <input type="search" id="winSearch" placeholder="Search" aria-label="Search">
+          </label>
+        </header>
+        <main class="lg-content" id="feed">
+          <div class="feed-hero"><div><small>Memories</small><strong>Lisbon in May</strong></div></div>
+          <div class="tile-grid" id="tiles1"></div>
+          <article class="feed-text">
+            <h3>Coast Walks</h3>
+            <p>Forty-two photos from the cliff path between Cascais and Cabo da Roca. The light changes fast up there: hard white glare at noon, then gold and violet from about seven.</p>
+            <p>Most of these were taken in the last hour before sunset, when the sea goes flat and the lighthouse comes on.</p>
+          </article>
+          <div class="stripe-band" aria-hidden="true"></div>
+          <div class="tile-grid" id="tiles2"></div>
+          <article class="feed-text">
+            <h3>Recently Edited</h3>
+            <p>Twelve photos adjusted this week. Straightened horizons, warmer whites and two portraits with background blur added afterwards.</p>
+          </article>
+          <div class="tile-grid" id="tiles3"></div>
+        </main>
+        <div class="float-bar lg-glass" data-lg-optics>
+          <div class="lg-segmented" style="--n:4; --i:3"><span class="lg-thumb"></span><button>Years</button><button>Months</button><button>Days</button><button>All</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="liquid-glass.js"></script>
+<script>
+  // no dragging words, icons or images around the preview (the lens and droplets use pointer events, not drag)
+  document.addEventListener("dragstart", (e) => e.preventDefault());
+  const root = document.documentElement;
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+  // segmented controls
+  document.querySelectorAll(".lg-segmented").forEach(seg => {
+    const btns = [...seg.querySelectorAll("button")];
+    const pick = (i) => {
+      seg.style.setProperty("--i", i);
+      btns.forEach((b, j) => b.setAttribute("aria-pressed", i === j));
+      const kind = seg.dataset.seg, v = btns[i].dataset.v;
+      if (kind === "theme") { v ? root.setAttribute("data-theme", v) : root.removeAttribute("data-theme"); store.set("lg-theme", v); }
+      if (kind === "wall") { v ? root.setAttribute("data-wall", v) : root.removeAttribute("data-wall"); store.set("lg-wall", v); }
+    };
+    btns.forEach((b, i) => b.addEventListener("click", () => pick(i)));
+    const saved = seg.dataset.seg && store.get("lg-" + seg.dataset.seg);
+    if (saved) { const i = btns.findIndex(b => b.dataset.v === saved); if (i > 0) pick(i); }
+  });
+
+  // slider fill
+  document.querySelectorAll(".lg-slider").forEach(s => {
+    const set = () => s.style.setProperty("--v", ((s.value - (s.min || 0)) / ((s.max || 100) - (s.min || 0))) * 100 + "%");
+    s.addEventListener("input", set); set();
+  });
+
+  // photo tiles
+  const hues = [[18, 60], [260, 320], [180, 220], [330, 20], [40, 90], [200, 280], [140, 190], [290, 350], [10, 40], [220, 260], [100, 160], [300, 340]];
+  const tiles = (list) => list.map(([a, b]) =>
+    `<div class="tile" style="background:linear-gradient(180deg,hsl(${a} 85% 66%),hsl(${b} 75% 42%))"></div>`).join("");
+  document.getElementById("tiles1").innerHTML = tiles(hues);
+  document.getElementById("tiles2").innerHTML = tiles(hues.slice(4).concat(hues.slice(0, 4)));
+  document.getElementById("tiles3").innerHTML = tiles(hues.slice().reverse());
+
+  // auto-scroll the feed up and down so content keeps passing under the glass
+  const feed = document.getElementById("feed"), auto = document.getElementById("autoScroll");
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) auto.checked = false;
+  let dir = 1, last = 0, pos = 0, feedOnScreen = false;
+  new IntersectionObserver(([e]) => { feedOnScreen = e.isIntersecting; }).observe(feed);
+  const tick = (t) => {
+    const dt = last ? Math.min(t - last, 50) : 0;
+    last = t;
+    if (auto.checked && feedOnScreen) {
+      const max = feed.scrollHeight - feed.clientHeight;
+      pos = Math.min(Math.max(pos + dir * dt * 0.045, 0), max);
+      if (pos >= max || pos <= 0) dir = -dir;
+      feed.scrollTop = pos;
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  ["wheel", "pointerdown", "touchstart", "keydown"].forEach(ev => feed.addEventListener(ev, () => { auto.checked = false; }, { passive: true }));
+  auto.addEventListener("change", () => { pos = feed.scrollTop; });
+
+  // reduced transparency: offer a preview override
+  const mq = matchMedia("(prefers-reduced-transparency: reduce)");
+  const force = document.getElementById("force");
+  const syncForce = () => {
+    document.getElementById("forceWrap").hidden = !mq.matches;
+    document.getElementById("forceNote").hidden = !mq.matches || force.checked;
+  };
+  force.addEventListener("change", () => {
+    force.checked ? root.setAttribute("data-lg-transparency", "full") : root.removeAttribute("data-lg-transparency");
+    store.set("lg-force", force.checked ? "1" : "");
+    syncForce();
+    LiquidGlass.init();
+  });
+  if (mq.matches && store.get("lg-force") === "1") { force.checked = true; root.setAttribute("data-lg-transparency", "full"); }
+  mq.addEventListener("change", syncForce);
+  syncForce();
+
+  LiquidGlass.init();
+
+  // typography ramp — HIG macOS built-in text styles
+  const TYPE = [
+    ["large-title", "Large Title", 26, 32, "Regular", "Bold", "+8", "Summer in Lisbon"],
+    ["title1", "Title 1", 22, 26, "Regular", "Bold", "−12", "Coast Walks"],
+    ["title2", "Title 2", 17, 22, "Regular", "Bold", "−26", "Recently Edited"],
+    ["title3", "Title 3", 15, 20, "Regular", "Semibold", "−16", "42 Photos, 3 Videos"],
+    ["headline", "Headline", 13, 16, "Bold", "Heavy", "−6", "Shared Library"],
+    ["body", "Body", 13, 16, "Regular", "Semibold", "−6", "Photos you add to this album appear on all your devices."],
+    ["callout", "Callout", 12, 15, "Regular", "Semibold", "0", "Last synced two minutes ago"],
+    ["subheadline", "Subheadline", 11, 14, "Regular", "Semibold", "+6", "Cascais to Cabo da Roca"],
+    ["footnote", "Footnote", 10, 13, "Regular", "Semibold", "+12", "Location data is stored on this Mac."],
+    ["caption1", "Caption 1", 10, 13, "Regular", "Medium", "+12", "12 May 2026 at 19:42"],
+    ["caption2", "Caption 2", 10, 13, "Medium", "Semibold", "+12", "ISO 100 · f/1.8 · 1/250"],
+  ];
+  document.getElementById("typeRamp").innerHTML = TYPE.map(([cls, name, size, lead, w, em, tr, text]) =>
+    `<div class="type-row"><div class="sample lg-text-${cls}">${text} <b>${name}</b></div>` +
+    `<div class="meta"><strong>${name}</strong>${size} / ${lead} px · ${w} · emphasized ${em} · tracking ${tr}</div></div>`).join("");
+
+  // grow and shrink demos — every outline is drawn by LiquidGlass.liquid, so it warps on its springs
+  const autoMorph = document.getElementById("autoMorph");
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) autoMorph.checked = false;
+  const toggles = [];
+  const glassOf = (host) => host.querySelector(".lg-glass");
+  const shadowOf = (host) => host.querySelector(".lq-shadow i");
+  const setOpen = (host, open) => {
+    open ? host.setAttribute("data-open", "") : host.removeAttribute("data-open");
+    host.querySelectorAll("[aria-expanded]").forEach(b => b.setAttribute("aria-expanded", open));
+    host.querySelectorAll("[tabindex]").forEach(n => { if (!n.matches(".lq-hit")) n.tabIndex = open ? 0 : -1; });
+  };
+  // a host that toggles between two outlines
+  const twoState = (id, closed, open, opts = {}) => {
+    const host = document.getElementById(id), trigger = host.querySelector(".lq-hit");
+    const ctl = LiquidGlass.morph(glassOf(host), {
+      closed, open, host, trigger, shadow: shadowOf(host), pad: 24, ...opts,
+      onChange: (o) => { setOpen(host, o); opts.onSet && opts.onSet(o); },
+    });
+    trigger.addEventListener("click", () => { autoMorph.checked = false; });
+    toggles.push(ctl.toggle);
+    return { host, set: (o) => (o ? ctl.open() : ctl.close()) };
+  };
+
+  twoState("qExpand", { x: 0, y: 0, w: 44, h: 44 }, { x: 0, y: 0, w: 194, h: 44 });
+  twoState("qSearch", { x: 0, y: 0, w: 44, h: 44 }, { x: 0, y: 0, w: 250, h: 44 }, {
+    preset: "snappy",
+    onSet: (o) => { if (o && !autoMorph.checked) document.getElementById("mSearchInput").focus(); },
+  });
+  const menu = twoState("qMenu", { x: 0, y: 0, w: 44, h: 44 }, { x: 0, y: 0, w: 220, h: 142, r: 14 });
+  menu.host.querySelectorAll(".lg-menu-item").forEach(i => i.addEventListener("click", () => menu.set(false)));
+
+  // Landmarks badges: three badges + toggle button in one container, spacing 16, badges 14 apart
+  (() => {
+    const host = document.getElementById("qBadges"), badges = [...host.querySelectorAll(".badge")];
+    const btn = { x: 16, y: 276, w: 44, h: 44 };
+    const shut = badges.map(() => ({ ...btn, r: 22 })).concat(btn);
+    const open = badges.map((_, i) => ({ x: 0, y: i * 90, w: 76, h: 76, r: 24 })).concat(btn);
+    const m = LiquidGlass.liquid(glassOf(host), {
+      blobs: shut, spacing: 16, shadow: shadowOf(host), preset: "smooth", pad: 24,
+      onFrame: (rects) => badges.forEach((b, i) => {
+        const r = rects[i], s = Math.max(0, Math.min((r.w - 44) / 32, 1));
+        b.style.setProperty("--x", r.x + r.w / 2 - 26 * s + "px");
+        b.style.setProperty("--y", r.y + r.h / 2 - 26 * s + "px");
+        b.style.setProperty("--s", s.toFixed(3));
+      }),
+    });
+    let isOpen = false;
+    const set = (o) => {
+      isOpen = o; setOpen(host, o);
+      host.querySelector(".badge-toggle").setAttribute("aria-label", o ? "Hide Badges" : "Show Badges");
+      m.to(o ? open : shut);
+    };
+    host.querySelector(".badge-toggle").addEventListener("click", () => { autoMorph.checked = false; set(!isOpen); });
+    toggles.push(() => set(!isOpen));
+  })();
+
+  // droplets: drag one out of the group; it stretches after the pointer and snaps back on release
+  (() => {
+    const host = document.getElementById("qDrop"), icons = [...host.querySelectorAll(".mdrop-icon")];
+    const w = 300, cy = 55, d = 52;
+    // apart: three circles. Together: the same circles 40 apart (overlapping), which the container turns into
+    // one capsule hugging the icons with even padding — 16 px on every side, like the circles themselves
+    const layout = (spread, merged = false) => [-1, 0, 1].map(k => ({ x: w / 2 - d / 2 + k * (merged ? 40 : spread), y: cy - d / 2, w: d, h: d }));
+    let merged = false;
+    let spread = 86;
+    const m = LiquidGlass.liquid(glassOf(host), {
+      blobs: layout(spread), spacing: 28, shadow: shadowOf(host), pad: 24,
+      onFrame: (rects) => icons.forEach((ic, i) => {
+        ic.style.setProperty("--x", rects[i].x + rects[i].w / 2 - 10 + "px");
+        ic.style.setProperty("--y", rects[i].y + rects[i].h / 2 - 10 + "px");
+      }),
+    });
+    toggles.push(() => { merged = !merged; m.to(layout(spread, merged)); });
+    let drag = -1;
+    const local = (e) => { const b = host.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
+    host.addEventListener("pointerdown", (e) => {
+      const [x, y] = local(e), rs = m.rects;
+      drag = rs.reduce((best, r, i) => Math.hypot(r.x + r.w / 2 - x, r.y + r.h / 2 - y) < Math.hypot(rs[best].x + rs[best].w / 2 - x, rs[best].y + rs[best].h / 2 - y) ? i : best, 0);
+      host.setPointerCapture(e.pointerId);
+      autoMorph.checked = false;
+    });
+    host.addEventListener("pointermove", (e) => {
+      if (drag < 0) return;
+      const [x, y] = local(e);
+      m.move(drag, { x: x - d / 2, y: y - d / 2, w: d, h: d });
+    });
+    const release = () => { if (drag >= 0) { drag = -1; m.to(layout(spread, merged)); } };
+    host.addEventListener("pointerup", release);
+    host.addEventListener("pointercancel", release);
+  })();
+
+  // materialize: swells out of a point while lensing ramps up
+  (() => {
+    const host = document.getElementById("qMat"), glass = glassOf(host);
+    const full = { x: 0, y: 0, w: 190, h: 44 }, dot = { x: 87, y: 14, w: 16, h: 16 };
+    const m = LiquidGlass.liquid(glass, { blobs: [full], shadow: shadowOf(host), pad: 24 });
+    let shown = true;
+    const set = (s) => {
+      shown = s;
+      m.to([s ? full : dot]);
+      LiquidGlass.materialize(glass, s, 340);
+      host.querySelector(".lq-shadow").style.opacity = s ? "" : "0";
+    };
+    glass.hidden = false;
+    host.querySelector(".lq-cover").addEventListener("click", () => { autoMorph.checked = false; set(!shown); });
+    toggles.push(() => set(!shown));
+  })();
+
+  // control sizes: height, width and corner shape all spring, so the button squashes between sizes
+  (() => {
+    const host = document.getElementById("qSize"), label = document.getElementById("mSizeText");
+    const measureCtx = document.createElement("canvas");
+    const SIZES = [["Mini", 16, 10, 4, 6, "rounded rectangle"], ["Small", 20, 11, 5, 8, "rounded rectangle"], ["Regular", 24, 13, 6, 10, "rounded rectangle"],
+                   ["Large", 30, 13, 15, 14, "capsule"], ["Extra large", 36, 15, 18, 18, "capsule, new in macOS 26"]];
+    const rectFor = (i) => {
+      const [, h, fs, r, pad] = SIZES[i];
+      label.style.fontSize = fs + "px";
+      const cs = getComputedStyle(label), ctx2 = measureCtx.getContext("2d");
+      ctx2.font = `500 ${fs}px ${cs.fontFamily}`;
+      const tw = Math.min(Math.ceil(ctx2.measureText(label.textContent).width), 200);   // real text width: even padding
+      const w = tw + pad * 2;
+      return { x: (220 - w) / 2, y: (44 - h) / 2, w, h, r };
+    };
+    let i = 2, dir = 1;
+    const m = LiquidGlass.liquid(glassOf(host), { blobs: [rectFor(i)], shadow: shadowOf(host), pad: 24 });
+    const step = () => {
+      if (i + dir > 4 || i + dir < 0) dir = -dir;
+      i += dir;
+      m.to([rectFor(i)]);
+      const [name, h, , , , shape] = SIZES[i];
+      document.getElementById("mSizeLabel").textContent = `${name} · ${h} px (estimated) · ${shape}`;
+    };
+    label.addEventListener("click", () => { autoMorph.checked = false; step(); });
+    toggles.push(step);
+  })();
+
+  // autoplay: one demo changes every ~0.8 s, only while the section is on screen
+  let morphOnScreen = false;
+  new IntersectionObserver(([e]) => { morphOnScreen = e.isIntersecting; }).observe(document.querySelector('.morph-grid'));
+  let turn = 0;
+  setInterval(() => {
+    if (!autoMorph.checked || document.hidden || !morphOnScreen) return;
+    toggles[turn % toggles.length]();
+    turn++;
+  }, 800);
+
+  // scroll window: the bottom bar's glass shrinks to the current choice while scrolling down
+  (() => {
+    const bar = document.querySelector(".float-bar"), seg = bar.querySelector(".lg-segmented");
+    const last = seg.querySelector("button:last-of-type");
+    const shadow = document.createElement("div");
+    shadow.className = "lq-shadow"; shadow.innerHTML = "<i></i>";
+    bar.parentNode.insertBefore(shadow, bar);
+    const full = () => ({ x: 6, y: 0, w: bar.offsetWidth - 12, h: bar.offsetHeight }); // room for overshoot
+    // wrap the selected segment with the bar's own 5 px inset on every side
+    const small = () => { const b = bar.getBoundingClientRect(), s = last.getBoundingClientRect(), pad = (b.height - s.height) / 2;
+      return { x: s.left - b.left - pad, y: 0, w: s.width + pad * 2, h: b.height }; };
+    const m = LiquidGlass.liquid(bar, { blobs: [full()], shadow: shadow.firstChild, preset: "snappy" });
+    const place = () => { const b = bar.getBoundingClientRect(), p = bar.parentNode.getBoundingClientRect();
+      Object.assign(shadow.style, { left: b.left - p.left + "px", top: b.top - p.top + "px", width: b.width + "px", height: b.height + "px", inset: "auto" }); };
+    place();
+    let lastTop = 0, isMin = false;
+    document.getElementById("feed").addEventListener("scroll", (e) => {
+      const top = e.target.scrollTop, dy = top - lastTop;
+      lastTop = top;
+      if (Math.abs(dy) < 2) return;
+      const min = dy > 0 && top > 60;
+      if (min === isMin) return;
+      isMin = min;
+      bar.classList.toggle("min", min);
+      m.to([min ? small() : full()]);
+    }, { passive: true });
+  })();
+
+  // optics playground
+  const lens = document.getElementById("lens"), stageEl = document.getElementById("opticsStage");
+  document.getElementById("opticsHint").hidden = LiquidGlass.canRefract;
+  if (!LiquidGlass.canRefract) document.getElementById("lensNote").textContent = "Frost and highlights";
+  let refreshQueued = false;
+  const queueRefresh = () => {
+    if (refreshQueued) return;
+    refreshQueued = true;
+    requestAnimationFrame(() => { refreshQueued = false; LiquidGlass.refresh(lens); });
+  };
+  document.querySelectorAll(".optics-panel input").forEach(inp => {
+    const out = document.getElementById(inp.id + "V");
+    inp.addEventListener("input", () => {
+      lens.style.setProperty(inp.dataset.token, inp.value + inp.dataset.unit);
+      out.textContent = inp.value + inp.dataset.fmt;
+      if (!("live" in inp.dataset)) queueRefresh(); // highlight strength is pure CSS, no rebuild
+    });
+  });
+  // drag (pointer) and nudge (arrow keys)
+  let drag = null;
+  const place = (x, y) => {
+    const s = stageEl.getBoundingClientRect(), l = lens.getBoundingClientRect();
+    lens.style.left = Math.min(Math.max(x, -l.width / 2), s.width - l.width / 2) + "px";
+    lens.style.top = Math.min(Math.max(y, -l.height / 2), s.height - l.height / 2) + "px";
+  };
+  lens.addEventListener("pointerdown", e => {
+    lens.setPointerCapture(e.pointerId);
+    drag = { dx: e.clientX - lens.offsetLeft, dy: e.clientY - lens.offsetTop };
+  });
+  lens.addEventListener("pointermove", e => { if (drag) place(e.clientX - drag.dx, e.clientY - drag.dy); });
+  lens.addEventListener("pointerup", () => drag = null);
+  lens.addEventListener("keydown", e => {
+    const step = e.shiftKey ? 40 : 10, k = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+    if (k) { e.preventDefault(); place(lens.offsetLeft + k[0], lens.offsetTop + k[1]); }
+  });
+</script>
+</body>
+</html>

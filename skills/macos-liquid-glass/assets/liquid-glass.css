@@ -1,0 +1,542 @@
+/* Liquid Glass kit — macOS 26-style translucent controls for the web.
+   Glass is for the navigation/control layer only. Content layer uses .lg-material-* or plain surfaces. */
+
+/* ---------- Tokens ---------- */
+:root {
+  color-scheme: light dark;
+  --lg-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+  /* system colours — HIG › Color, unified table for the 26 releases (light / dark / increased contrast) */
+  --lg-red: #ff383c;    --lg-orange: #ff8d28; --lg-yellow: #ffcc00; --lg-green: #34c759;
+  --lg-mint: #00c8b3;   --lg-teal: #00c3d0;   --lg-cyan: #00c0e8;   --lg-blue: #0088ff;
+  --lg-indigo: #6155f5; --lg-purple: #cb30e0; --lg-pink: #ff2d55;   --lg-brown: #ac7f5e;
+  --lg-gray: #8e8e93;
+
+  /* labels (labelColor family) */
+  --lg-label: rgba(0, 0, 0, 0.85);
+  --lg-label-secondary: rgba(0, 0, 0, 0.5);
+  --lg-label-tertiary: rgba(0, 0, 0, 0.26);
+  --lg-label-quaternary: rgba(0, 0, 0, 0.1);
+  --lg-separator: rgba(0, 0, 0, 0.1);
+  --lg-fill-control: rgba(0, 0, 0, 0.05);
+  --lg-fill-control-hover: rgba(0, 0, 0, 0.08);
+  --lg-accent: var(--lg-blue); /* controlAccentColor; the user's System Settings accent replaces it */
+  --lg-accent-label: #fff;
+
+  /* glass */
+  --lg-fill: rgba(255, 255, 255, 0.42);
+  --lg-fill-clear: rgba(255, 255, 255, 0.12);
+  --lg-blur: 16px;
+  --lg-saturate: 180%;
+  --lg-brightness: 1.06;
+  --lg-rim-hi: rgba(255, 255, 255, 0.9);
+  --lg-rim-lo: rgba(255, 255, 255, 0.25);
+  --lg-rim-far: rgba(255, 255, 255, 0.55); /* internal reflection on the edge facing away from the light */
+  --lg-inner-hi: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  --lg-inner-lo: inset 0 -1px 1px rgba(0, 0, 0, 0.04);
+  --lg-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+
+  /* optics (liquid-glass.js reads these per element; call LiquidGlass.refresh(el) after changing them) */
+  --lg-light-angle: -135deg; /* where the light comes from: 0 = right, -90deg = top, -135deg = top-left */
+  --lg-refraction: 14;       /* max backdrop shift at the bezel, px (0 = off) */
+  --lg-bezel: 16px;          /* width of the curved edge that bends light */
+  --lg-dispersion: 0;        /* colour fringing, 0–0.15; costs three filter passes */
+  --lg-specular: 0.9;        /* rim highlight strength, 0–1 */
+  --lg-glow-hover: 0.2;      /* pointer glow while hovering (pointer is subtler than touch) */
+  --lg-glow-press: 0.42;     /* glow spreading from the press point */
+
+  /* content-layer materials (not Liquid Glass) */
+  --lg-mat-ultrathin: rgba(255, 255, 255, 0.35);
+  --lg-mat-thin: rgba(255, 255, 255, 0.5);
+  --lg-mat-regular: rgba(255, 255, 255, 0.68);
+  --lg-mat-thick: rgba(255, 255, 255, 0.85);
+
+  /* window */
+  --lg-window-bg: #ffffff; /* controlBackgroundColor: content surface */
+  --lg-window-tint: rgba(236, 236, 242, 0.62); /* behind-window material: wallpaper shows through the sidebar area */
+  --lg-window-border: rgba(0, 0, 0, 0.18);
+  --lg-window-shadow: 0 30px 80px rgba(0, 0, 0, 0.28), 0 0 0 0.5px rgba(0, 0, 0, 0.25);
+
+  /* shape — concentric: inner = outer - inset */
+  --lg-r-window: 26px;
+  --lg-inset: 8px;
+  --lg-r-panel: calc(var(--lg-r-window) - var(--lg-inset)); /* 18px */
+  --lg-r-control: 999px;
+  --lg-r-menu: 14px;
+  --lg-r-item: 8px;
+
+  /* motion — SwiftUI springs (duration 0.5 s) sampled to CSS linear(); pair each with its settle time */
+  --lg-spring-smooth: linear(0, 0.02, 0.068, 0.134, 0.209, 0.286, 0.363, 0.437, 0.506, 0.569, 0.626, 0.677, 0.722, 0.761, 0.796, 0.826, 0.852, 0.875, 0.894, 0.911, 0.925, 0.937, 0.947, 0.955, 0.962, 0.969, 0.974, 0.978, 0.982, 0.985, 0.987, 0.989, 0.991, 0.993, 0.994, 0.995, 0.996, 0.997, 0.997, 0.998, 1);
+  --lg-spring-snappy: linear(0, 0.018, 0.065, 0.131, 0.207, 0.289, 0.372, 0.452, 0.528, 0.598, 0.661, 0.718, 0.768, 0.812, 0.849, 0.881, 0.907, 0.929, 0.947, 0.962, 0.974, 0.983, 0.99, 0.995, 0.999, 1.002, 1.004, 1.005, 1.006, 1.006, 1.006, 1.006, 1.006, 1.005, 1.005, 1.004, 1.004, 1.003, 1.003, 1.002, 1);
+  --lg-spring-bouncy: linear(0, 0.024, 0.084, 0.17, 0.269, 0.373, 0.477, 0.576, 0.666, 0.747, 0.817, 0.876, 0.924, 0.963, 0.992, 1.014, 1.029, 1.039, 1.044, 1.046, 1.045, 1.043, 1.039, 1.034, 1.03, 1.025, 1.02, 1.016, 1.012, 1.009, 1.006, 1.004, 1.002, 1.001, 1, 0.999, 0.998, 0.998, 0.998, 0.998, 1);
+  --lg-dur-smooth: 675ms;
+  --lg-dur-snappy: 645ms;
+  --lg-dur-bouncy: 730ms;
+  --lg-spring: var(--lg-spring-smooth); /* SwiftUI default Spring(duration: 0.5, bounce: 0) */
+  --lg-bounce: var(--lg-spring-bouncy);
+  --lg-dur: var(--lg-dur-smooth);
+  --lg-dur-fast: 180ms;
+
+  /* control sizes — macOS 26 adds extraLarge; mini…regular are rounded rects, large/extraLarge capsules.
+     Apple publishes no heights; these are measured estimates. */
+  --lg-size-mini: 16px;
+  --lg-size-small: 20px;
+  --lg-size-regular: 24px;
+  --lg-size-large: 30px;
+  --lg-size-xlarge: 36px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lg-red: #ff4245;    --lg-orange: #ff9230; --lg-yellow: #ffd600; --lg-green: #30d158;
+    --lg-mint: #00dac3;   --lg-teal: #00d2e0;   --lg-cyan: #3cd3fe;   --lg-blue: #0091ff;
+    --lg-indigo: #6d7cff; --lg-purple: #db34f2; --lg-pink: #ff375f;   --lg-brown: #b78a66;
+    --lg-label: rgba(255, 255, 255, 0.85);
+    --lg-label-secondary: rgba(255, 255, 255, 0.55);
+    --lg-label-tertiary: rgba(255, 255, 255, 0.25);
+    --lg-label-quaternary: rgba(255, 255, 255, 0.1);
+    --lg-separator: rgba(255, 255, 255, 0.12);
+    --lg-fill-control: rgba(255, 255, 255, 0.08);
+    --lg-fill-control-hover: rgba(255, 255, 255, 0.13);
+    --lg-fill: rgba(40, 40, 46, 0.45);
+    --lg-fill-clear: rgba(30, 30, 34, 0.15);
+    --lg-brightness: 0.95;
+    --lg-rim-hi: rgba(255, 255, 255, 0.4);
+    --lg-rim-lo: rgba(255, 255, 255, 0.06);
+    --lg-rim-far: rgba(255, 255, 255, 0.2);
+    --lg-specular: 0.55;
+    --lg-glow-hover: 0.17;
+    --lg-glow-press: 0.3;
+    --lg-inner-hi: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    --lg-inner-lo: inset 0 -1px 1px rgba(0, 0, 0, 0.2);
+    --lg-shadow: 0 10px 36px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --lg-mat-ultrathin: rgba(30, 30, 32, 0.35);
+    --lg-mat-thin: rgba(30, 30, 32, 0.5);
+    --lg-mat-regular: rgba(30, 30, 32, 0.68);
+    --lg-mat-thick: rgba(30, 30, 32, 0.85);
+    --lg-window-bg: #1e1e1e;
+    --lg-window-tint: rgba(28, 28, 32, 0.6);
+    --lg-window-border: rgba(255, 255, 255, 0.14);
+    --lg-window-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(0, 0, 0, 0.8);
+  }
+}
+:root[data-theme="dark"] {
+  --lg-red: #ff4245;    --lg-orange: #ff9230; --lg-yellow: #ffd600; --lg-green: #30d158;
+  --lg-mint: #00dac3;   --lg-teal: #00d2e0;   --lg-cyan: #3cd3fe;   --lg-blue: #0091ff;
+  --lg-indigo: #6d7cff; --lg-purple: #db34f2; --lg-pink: #ff375f;   --lg-brown: #b78a66;
+  --lg-label: rgba(255, 255, 255, 0.85);
+  --lg-label-secondary: rgba(255, 255, 255, 0.55);
+  --lg-label-tertiary: rgba(255, 255, 255, 0.25);
+  --lg-label-quaternary: rgba(255, 255, 255, 0.1);
+  --lg-separator: rgba(255, 255, 255, 0.12);
+  --lg-fill-control: rgba(255, 255, 255, 0.08);
+  --lg-fill-control-hover: rgba(255, 255, 255, 0.13);
+  --lg-fill: rgba(40, 40, 46, 0.45);
+  --lg-fill-clear: rgba(30, 30, 34, 0.15);
+  --lg-brightness: 0.95;
+  --lg-rim-hi: rgba(255, 255, 255, 0.4);
+  --lg-rim-lo: rgba(255, 255, 255, 0.06);
+  --lg-rim-far: rgba(255, 255, 255, 0.2);
+  --lg-specular: 0.55;
+  --lg-glow-hover: 0.17;
+  --lg-glow-press: 0.3;
+  --lg-inner-hi: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --lg-inner-lo: inset 0 -1px 1px rgba(0, 0, 0, 0.2);
+  --lg-shadow: 0 10px 36px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --lg-mat-ultrathin: rgba(30, 30, 32, 0.35);
+  --lg-mat-thin: rgba(30, 30, 32, 0.5);
+  --lg-mat-regular: rgba(30, 30, 32, 0.68);
+  --lg-mat-thick: rgba(30, 30, 32, 0.85);
+  --lg-window-bg: #1e1e1e;
+  --lg-window-tint: rgba(28, 28, 32, 0.6);
+  --lg-window-border: rgba(255, 255, 255, 0.14);
+  --lg-window-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(0, 0, 0, 0.8);
+}
+
+/* ---------- Chrome behaviour: like macOS, control labels can't be selected or dragged ---------- */
+:where(.lg-window, .lg-glass, .lg-btn, .lg-toolbar, .lg-sidebar, .lg-menu, .lg-segmented, .lg-toggle, .lg-traffic, .lg-sheet, .lg-popover) {
+  -webkit-user-select: none; user-select: none; -webkit-user-drag: none;
+}
+:where(.lg-window, .lg-glass, .lg-toolbar, .lg-sidebar, .lg-menu, .lg-popover, .lg-sheet) :where(img, svg, a) { -webkit-user-drag: none; }
+/* text the person types or reads as content stays selectable */
+:where(.lg-glass, .lg-window, .lg-sheet, .lg-popover) :where(input, textarea, [contenteditable], .lg-content, .lg-selectable) {
+  -webkit-user-select: text; user-select: text;
+}
+/* ---------- Typography: macOS built-in text styles (HIG › Typography) ----------
+   Fixed sizes on macOS (no Dynamic Type). 1 pt = 1 CSS px. Tracking = SF Pro macOS table (1/1000 em).
+   Add .lg-em for the style's emphasized weight. Default text is Body; minimum is 10 px. */
+.lg-text-large-title { font: 400 26px/32px var(--lg-font); letter-spacing: 0.008em;  --lg-em-weight: 700; }
+.lg-text-title1      { font: 400 22px/26px var(--lg-font); letter-spacing: -0.012em; --lg-em-weight: 700; }
+.lg-text-title2      { font: 400 17px/22px var(--lg-font); letter-spacing: -0.026em; --lg-em-weight: 700; }
+.lg-text-title3      { font: 400 15px/20px var(--lg-font); letter-spacing: -0.016em; --lg-em-weight: 600; }
+.lg-text-headline    { font: 700 13px/16px var(--lg-font); letter-spacing: -0.006em; --lg-em-weight: 800; }
+.lg-text-body        { font: 400 13px/16px var(--lg-font); letter-spacing: -0.006em; --lg-em-weight: 600; }
+.lg-text-callout     { font: 400 12px/15px var(--lg-font); letter-spacing: 0;        --lg-em-weight: 600; }
+.lg-text-subheadline { font: 400 11px/14px var(--lg-font); letter-spacing: 0.006em;  --lg-em-weight: 600; }
+.lg-text-footnote    { font: 400 10px/13px var(--lg-font); letter-spacing: 0.012em;  --lg-em-weight: 600; }
+.lg-text-caption1    { font: 400 10px/13px var(--lg-font); letter-spacing: 0.012em;  --lg-em-weight: 500; }
+.lg-text-caption2    { font: 500 10px/13px var(--lg-font); letter-spacing: 0.012em;  --lg-em-weight: 600; }
+.lg-em { font-weight: var(--lg-em-weight, 600); }
+
+/* ---------- Glass material ---------- */
+.lg-glass {
+  position: relative;
+  isolation: isolate;
+  --lg-glass-bg: var(--lg-fill);
+  background: var(--lg-glass-bg);
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate)) brightness(var(--lg-brightness));
+  backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate)) brightness(var(--lg-brightness));
+  box-shadow: var(--lg-inner-hi), var(--lg-inner-lo), var(--lg-shadow);
+  color: var(--lg-label);
+}
+/* CSS rim (no-JS fallback): 1px ring, brightest facing the light, fainter internal reflection opposite */
+.lg-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from calc(var(--lg-light-angle) + 90deg),
+    var(--lg-rim-hi), var(--lg-rim-lo) 70deg, var(--lg-rim-lo) 140deg, var(--lg-rim-far) 180deg,
+    var(--lg-rim-lo) 220deg, var(--lg-rim-lo) 290deg, var(--lg-rim-hi));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+  z-index: 1;
+}
+/* JS specular (liquid-glass.js): shaped rim light + bloom replaces the CSS ring */
+/* illumination (liquid-glass.js): light blooms from the pointer and spreads through the glass,
+   added on top (plus-lighter) so it reads in light and dark; ::before is free once the JS rim is on */
+.lg-glass.lg-lit::before {
+  padding: 0; -webkit-mask: none; mask: none;
+  background: radial-gradient(circle var(--lg-glow-r, 90px) at var(--lg-px, 50%) var(--lg-py, 50%),
+    #fff, rgba(255, 255, 255, 0.3) 50%, transparent);
+  mix-blend-mode: plus-lighter;
+  opacity: 0;
+}
+.lg-glass.lg-glow-ready::before { transition: opacity 420ms ease; /* light lingers a moment after release */
+}
+.lg-glass.lg-lit::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lg-specular-map) center / 100% 100% no-repeat;
+  opacity: calc(var(--lg-specular) * var(--lg-k, 1)); /* --lg-k: materialize progress */
+  pointer-events: none;
+  z-index: 1;
+}
+/* liquid (warping) glass: outline is a clip-path, rim an SVG stroke along it (vector, seamless) */
+.lg-glass.lg-liquid::after { display: none; }
+.lg-rim {
+  position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible;
+  opacity: calc(var(--lg-specular) * var(--lg-k, 1)); transition: opacity 220ms ease;
+}
+.lg-glass.lg-hover > .lg-rim { opacity: min(1, calc(var(--lg-specular) * var(--lg-k, 1) * 1.3)); }
+.lg-glass.lg-press > .lg-rim { opacity: min(1, calc(var(--lg-specular) * var(--lg-k, 1) * 1.7)); transition-duration: 90ms; }
+/* illumination: glow follows the pointer, spreads from the press point */
+.lg-glass.lg-hover::before { opacity: var(--lg-glow-hover); transition-duration: 220ms; }
+.lg-glass.lg-hover::after { opacity: min(1, calc(var(--lg-specular) * var(--lg-k, 1) * 1.3)); }
+.lg-glass.lg-press::after { opacity: min(1, calc(var(--lg-specular) * var(--lg-k, 1) * 1.7)); }
+.lg-glass.lg-press { --lg-glow-r: 220px; } /* spreads through the glass */
+.lg-glass.lg-press::before { opacity: var(--lg-glow-press); transition-duration: 90ms; }
+
+/* clear variant: only over rich media (photos/video) */
+.lg-glass.lg-glass--clear {
+  --lg-fill: var(--lg-fill-clear);
+  --lg-blur: 6px;
+  --lg-saturate: 150%;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+/* 35% dimming layer behind clear glass over bright media */
+.lg-dim { position: relative; }
+.lg-dim::after { content: ""; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.35); pointer-events: none; }
+
+/* content-layer materials (cards, backgrounds) — not Liquid Glass */
+.lg-material-ultrathin, .lg-material-thin, .lg-material-regular, .lg-material-thick {
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+}
+.lg-material-ultrathin { background: var(--lg-mat-ultrathin); }
+.lg-material-thin { background: var(--lg-mat-thin); }
+.lg-material-regular { background: var(--lg-mat-regular); }
+.lg-material-thick { background: var(--lg-mat-thick); }
+
+/* ---------- Window ---------- */
+.lg-window {
+  --lg-sidebar-w: 220px; /* set 0px on windows without a sidebar */
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+  border-radius: var(--lg-r-window);
+  background: var(--lg-window-tint);
+  -webkit-backdrop-filter: blur(50px) saturate(180%);
+  backdrop-filter: blur(50px) saturate(180%);
+  box-shadow: var(--lg-window-shadow);
+  outline: 0.5px solid var(--lg-window-border);
+  font: 13px/1.38 var(--lg-font);
+  color: var(--lg-label);
+  -webkit-font-smoothing: antialiased;
+}
+/* content runs full-bleed under the sidebar and toolbar */
+.lg-content {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  overflow: auto;
+  padding: 64px 24px 24px calc(var(--lg-sidebar-w, 0px) + 2 * var(--lg-inset) + 16px);
+  /* opaque content surface beside the sidebar; stays put while content scrolls */
+  background: linear-gradient(to right, transparent calc(var(--lg-sidebar-w) + 2 * var(--lg-inset)), var(--lg-window-bg) 0);
+}
+
+.lg-traffic { display: flex; gap: 8px; padding: 0 4px; }
+.lg-traffic button {
+  width: 12px; height: 12px; padding: 0; border: 0; border-radius: 50%;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+  display: grid; place-items: center; cursor: default;
+}
+.lg-traffic .close { background: #ff5f57; }
+.lg-traffic .min { background: #febc2e; }
+.lg-traffic .zoom { background: #28c840; }
+.lg-traffic svg { width: 8px; height: 8px; opacity: 0; stroke: rgba(0, 0, 0, 0.55); stroke-width: 1.6; }
+.lg-traffic:hover svg { opacity: 1; }
+.lg-window:not(:focus-within):not(:hover) .lg-traffic button { background: var(--lg-label-tertiary); }
+
+/* ---------- Sidebar (floating, inset glass panel) ---------- */
+.lg-sidebar {
+  grid-column: 1; grid-row: 1;
+  z-index: 2;
+  box-sizing: border-box;
+  width: var(--lg-sidebar-w);
+  margin: var(--lg-inset);
+  border-radius: var(--lg-r-panel);
+  padding: 12px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+  align-self: stretch;
+}
+.lg-sidebar-header { display: flex; align-items: center; height: 28px; margin-bottom: 8px; }
+.lg-section-title { /* title case, not all caps */
+  font-size: 11px; font-weight: 600; color: var(--lg-label-secondary);
+  padding: 10px 8px 4px;
+}
+.lg-sidebar-item {
+  display: flex; align-items: center; gap: 8px;
+  height: 28px; padding: 0 8px; border-radius: var(--lg-r-item);
+  color: var(--lg-label); text-decoration: none; border: 0; background: none; font: inherit; text-align: left;
+  transition: background var(--lg-dur-fast) ease;
+}
+.lg-sidebar-item svg { width: 16px; height: 16px; color: var(--lg-accent); flex: none; }
+.lg-sidebar-item:hover { background: var(--lg-fill-control); }
+.lg-sidebar-item[aria-current="page"], .lg-sidebar-item.is-selected { background: var(--lg-fill-control-hover); font-weight: 500; }
+
+/* ---------- Toolbar ---------- */
+.lg-toolbar {
+  position: absolute; z-index: 3;
+  top: var(--lg-inset); right: var(--lg-inset);
+  left: calc(var(--lg-sidebar-w) + 2 * var(--lg-inset) + 4px);
+  height: 40px;
+  display: flex; align-items: center; gap: 12px;   /* fixed space between groups */
+  pointer-events: none;                           /* bar itself is not glass; groups are */
+}
+.lg-toolbar > * { pointer-events: auto; }
+.lg-toolbar-title { font-size: 15px; font-weight: 600; padding-left: 8px; pointer-events: none; }
+.lg-spacer { flex: 1; }
+/* a capsule group of related actions — the glass lives here */
+.lg-group {
+  display: flex; align-items: center; gap: 2px;
+  height: 36px; padding: 0 4px; border-radius: var(--lg-r-control);
+}
+/* scroll-edge effect: keeps toolbar legible over scrolled content */
+.lg-scroll-edge-top {
+  position: absolute; z-index: 1; left: calc(var(--lg-sidebar-w) + 2 * var(--lg-inset)); right: 0; top: 0; height: 64px; pointer-events: none;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  -webkit-mask: linear-gradient(#000 40%, transparent); mask: linear-gradient(#000 40%, transparent);
+}
+
+/* ---------- Buttons ---------- */
+.lg-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 28px; min-width: 28px; padding: 0 10px;
+  border: 0; border-radius: var(--lg-r-control);
+  background: transparent; color: var(--lg-label);
+  font: 500 13px/1 var(--lg-font);
+  cursor: default;
+  transition: transform var(--lg-dur-fast) var(--lg-bounce), background var(--lg-dur-fast) ease, filter var(--lg-dur-fast) ease;
+}
+.lg-btn svg { width: 16px; height: 16px; stroke-width: 1.75; }
+.lg-btn--icon { padding: 0; width: 32px; }
+.lg-btn:hover { background: var(--lg-fill-control); }
+.lg-btn:active { transform: scale(0.94); background: var(--lg-fill-control-hover); }
+.lg-btn:disabled { opacity: 0.4; pointer-events: none; }
+/* buttons sitting on glass get no plate of their own: hover/press is light that fades to transparent */
+.lg-glass .lg-btn:not(.lg-glass):not(.lg-btn--prominent):hover {
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--lg-label) 14%, transparent), transparent);
+}
+.lg-glass .lg-btn:not(.lg-glass):not(.lg-btn--prominent):active {
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--lg-label) 22%, transparent), transparent);
+}
+/* interactive glass: flexes up, bounces and lights from the press point (subdued for a pointer) */
+.lg-btn.lg-glass:active, .lg-interactive:active { transform: scale(1.06); }
+.lg-interactive { transition: transform var(--lg-dur-bouncy) var(--lg-spring-bouncy); }
+.lg-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--lg-accent) 50%, transparent); outline-offset: 1px; }
+/* standalone glass button (floating, not inside a glass group) */
+.lg-btn.lg-glass {
+  height: 36px; padding: 0 16px; background: var(--lg-glass-bg);
+  transition: transform var(--lg-dur-bouncy) var(--lg-spring-bouncy), filter var(--lg-dur-fast) ease;
+}
+.lg-btn.lg-glass.lg-btn--icon { width: 36px; padding: 0; }
+.lg-btn.lg-glass:hover, .lg-btn.lg-glass:active { background: var(--lg-glass-bg); }
+.lg-btn.lg-glass:hover { filter: brightness(1.06); }
+/* control sizes (NSControl.ControlSize) */
+.lg-btn.lg-btn--mini    { height: var(--lg-size-mini);    padding: 0 6px;  font-size: 10px; border-radius: 4px; }
+.lg-btn.lg-btn--small   { height: var(--lg-size-small);   padding: 0 8px;  font-size: 11px; border-radius: 5px; }
+.lg-btn.lg-btn--regular { height: var(--lg-size-regular); padding: 0 10px; font-size: 13px; border-radius: 6px; }
+.lg-btn.lg-btn--large   { height: var(--lg-size-large);   padding: 0 14px; font-size: 13px; border-radius: 999px; }
+.lg-btn.lg-btn--xlarge  { height: var(--lg-size-xlarge); padding: 0 18px; font-size: 15px; border-radius: 999px; }
+/* prominent: tinted glass — use for the one primary action */
+.lg-btn--prominent {
+  background: color-mix(in srgb, var(--lg-accent) 88%, transparent);
+  color: var(--lg-accent-label);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 14px color-mix(in srgb, var(--lg-accent) 35%, transparent);
+}
+.lg-btn--prominent:hover { background: var(--lg-accent); }
+
+/* ---------- Search field ---------- */
+.lg-search {
+  display: flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 14px; border-radius: var(--lg-r-control); min-width: 200px;
+}
+.lg-search svg { width: 15px; height: 15px; color: var(--lg-label-secondary); }
+.lg-search input {
+  flex: 1; border: 0; outline: 0; background: none; color: var(--lg-label); font: 13px var(--lg-font);
+}
+.lg-search input::placeholder { color: var(--lg-label-secondary); }
+
+/* ---------- Segmented control (sliding glass thumb) ---------- */
+.lg-segmented {
+  position: relative; display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  height: 32px; padding: 3px; border-radius: var(--lg-r-control); background: var(--lg-fill-control);
+}
+.lg-segmented button {
+  position: relative; z-index: 1; border: 0; background: none; padding: 0 14px;
+  font: 500 13px var(--lg-font); color: var(--lg-label); border-radius: var(--lg-r-control);
+}
+.lg-segmented .lg-thumb {
+  position: absolute; top: 3px; bottom: 3px; left: 3px; border-radius: var(--lg-r-control);
+  width: calc((100% - 6px) / var(--n, 2));
+  transform: translateX(calc(100% * var(--i, 0)));
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12), inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  transition: transform var(--lg-dur) var(--lg-spring);
+}
+:root[data-theme="dark"] .lg-segmented .lg-thumb { background: rgba(255, 255, 255, 0.2); }
+/* on glass the selection is light that fades out, not a plate under the label */
+.lg-glass .lg-segmented { background: transparent; }
+.lg-glass .lg-segmented .lg-thumb, :root:not([data-theme="light"]) .lg-glass .lg-segmented .lg-thumb,
+:root[data-theme="dark"] .lg-glass .lg-segmented .lg-thumb {
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--lg-label) 16%, transparent),
+    color-mix(in srgb, var(--lg-label) 7%, transparent) 70%, transparent);
+  box-shadow: none;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lg-segmented .lg-thumb { background: rgba(255, 255, 255, 0.2); } }
+
+/* ---------- Toggle (knob turns glassy while pressed) ---------- */
+.lg-toggle { position: relative; display: inline-block; width: 38px; height: 22px; }
+.lg-toggle input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: default; }
+.lg-toggle .track {
+  position: absolute; inset: 0; border-radius: 999px; background: var(--lg-fill-control-hover);
+  transition: background var(--lg-dur-fast) ease;
+}
+.lg-toggle .knob {
+  position: absolute; top: 2px; left: 2px; width: 26px; height: 18px; border-radius: 999px; background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform var(--lg-dur) var(--lg-spring), width var(--lg-dur-fast) var(--lg-spring), background var(--lg-dur-fast);
+}
+.lg-toggle input:checked ~ .track { background: var(--lg-green); }
+.lg-toggle input:checked ~ .knob { transform: translateX(8px); }
+.lg-toggle input:active ~ .knob {
+  background: rgba(255, 255, 255, 0.45);
+  -webkit-backdrop-filter: blur(4px) saturate(180%); backdrop-filter: blur(4px) saturate(180%);
+  transform: scale(1.15); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.lg-toggle input:checked:active ~ .knob { transform: translateX(8px) scale(1.15); }
+.lg-toggle input:focus-visible ~ .track { outline: 3px solid color-mix(in srgb, var(--lg-accent) 50%, transparent); outline-offset: 1px; }
+
+/* ---------- Slider (thumb turns glassy while dragged) ---------- */
+.lg-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; --v: 50%; }
+.lg-slider::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 999px;
+  background: linear-gradient(to right, var(--lg-accent) var(--v), var(--lg-fill-control-hover) var(--v));
+}
+.lg-slider::-moz-range-track { height: 6px; border-radius: 999px; background: var(--lg-fill-control-hover); }
+.lg-slider::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--lg-accent); }
+.lg-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 28px; height: 20px; margin-top: -7px; border-radius: 999px; background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); transition: transform var(--lg-dur-fast) var(--lg-spring), background var(--lg-dur-fast);
+}
+.lg-slider::-moz-range-thumb { width: 28px; height: 20px; border: 0; border-radius: 999px; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
+.lg-slider:active::-webkit-slider-thumb { transform: scale(1.25); background: rgba(255, 255, 255, 0.55); box-shadow: inset 0 0 0 1px #fff, 0 3px 10px rgba(0, 0, 0, 0.25); }
+.lg-slider:active::-moz-range-thumb { transform: scale(1.25); background: rgba(255, 255, 255, 0.55); }
+
+/* ---------- Menu / popover / sheet ---------- */
+.lg-menu {
+  min-width: 200px; padding: 6px; border-radius: var(--lg-r-menu);
+  display: flex; flex-direction: column;
+}
+.lg-menu-item {
+  display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 10px;
+  border: 0; background: none; color: var(--lg-label); font: 13px var(--lg-font); text-align: left;
+  border-radius: calc(var(--lg-r-menu) - 6px);
+}
+.lg-menu-item svg { width: 15px; height: 15px; }
+.lg-menu-item kbd { margin-left: auto; font: inherit; color: var(--lg-label-secondary); }
+.lg-menu-item:hover, .lg-menu-item:focus-visible { background: var(--lg-accent); color: var(--lg-accent-label); outline: 0; }
+.lg-menu-item:hover kbd { color: inherit; opacity: 0.8; }
+.lg-menu-sep { height: 1px; margin: 5px 10px; background: var(--lg-separator); }
+
+.lg-popover { padding: 14px; border-radius: 18px; max-width: 320px; }
+
+/* sheet: drops from under the toolbar, inset, rounder corners */
+.lg-sheet-backdrop {
+  position: absolute; inset: 0; z-index: 10; display: grid; place-items: start center; padding-top: 56px;
+  background: rgba(0, 0, 0, 0.12);
+}
+.lg-sheet { width: min(440px, 90%); padding: 20px; border-radius: 22px; --lg-fill: var(--lg-mat-thick); }
+
+/* appear: spring in from the source */
+.lg-pop-in { animation: lg-pop-in var(--lg-dur) var(--lg-spring) both; transform-origin: var(--lg-origin, top center); }
+@keyframes lg-pop-in { from { opacity: 0; transform: scale(0.9) translateY(-6px); filter: blur(4px); } }
+
+/* ---------- Accessibility ---------- */
+/* data-lg-transparency="full" on <html> skips this fallback — for design previews only, never ship it on */
+@media (prefers-reduced-transparency: reduce) {
+  :root:not([data-lg-transparency="full"]) :is(.lg-window, .lg-glass, .lg-glass--clear, [class*="lg-material-"], .lg-scroll-edge-top) {
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  }
+  :root:not([data-lg-transparency="full"]) .lg-window { background: var(--lg-window-bg); }
+  :root:not([data-lg-transparency="full"]) .lg-glass.lg-lit::after { display: none; }
+  :root:not([data-lg-transparency="full"]) .lg-glass.lg-lit::before { display: block; }
+  :root:not([data-lg-transparency="full"]) :is(.lg-glass, [class*="lg-material-"]) { background: var(--lg-window-bg) !important; color: var(--lg-label) !important; text-shadow: none !important; }
+  :root:not([data-lg-transparency="full"]) .lg-scroll-edge-top { background: linear-gradient(var(--lg-window-bg) 50%, transparent); }
+}
+@media (prefers-contrast: more) {
+  :root { --lg-label-secondary: var(--lg-label); --lg-separator: currentColor;
+    --lg-red: #e9152d; --lg-orange: #c55300; --lg-yellow: #a16a00; --lg-green: #008932; --lg-mint: #008575; --lg-teal: #008198;
+    --lg-cyan: #007eae; --lg-blue: #1e6ef4; --lg-indigo: #564ade; --lg-purple: #b02fc2; --lg-pink: #e7124d; --lg-brown: #956d51; --lg-gray: #6c6c70; }
+  :root[data-theme="dark"] { --lg-red: #ff6165; --lg-orange: #ffa056; --lg-yellow: #fedf43; --lg-green: #4ad968; --lg-mint: #54dfcb; --lg-teal: #3bddec;
+    --lg-cyan: #6dd9ff; --lg-blue: #5cb8ff; --lg-indigo: #a7aaff; --lg-purple: #ea8dff; --lg-pink: #ff8ac4; --lg-brown: #dba679; --lg-gray: #aeaeb2; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --lg-red: #ff6165; --lg-orange: #ffa056; --lg-yellow: #fedf43; --lg-green: #4ad968; --lg-mint: #54dfcb; --lg-teal: #3bddec;
+    --lg-cyan: #6dd9ff; --lg-blue: #5cb8ff; --lg-indigo: #a7aaff; --lg-purple: #ea8dff; --lg-pink: #ff8ac4; --lg-brown: #dba679; --lg-gray: #aeaeb2; } }
+  .lg-glass::before { background: currentColor; opacity: 0.6; }
+  .lg-glass { --lg-fill: var(--lg-mat-thick); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lg-btn:active, .lg-btn.lg-glass:active, .lg-interactive:active, .lg-toggle input:active ~ .knob { transform: none; } /* no elastic flex */
+  .lg-segmented .lg-thumb, .lg-toggle .knob { transition-duration: 1ms; }
+  .lg-pop-in { animation: lg-fade-in 150ms ease both; }
+}
+@keyframes lg-fade-in { from { opacity: 0; } }

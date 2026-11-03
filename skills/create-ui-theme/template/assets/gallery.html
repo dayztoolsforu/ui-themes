@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>THEME NAME Kit</title>
+<link rel="stylesheet" href="THEME-ID.css">
+<style>
+  /* Gallery page: one column of labelled stages; each stage shows components live. */
+  body { margin: 0; padding: 0 16px; background: var(--xx-bg); color: var(--xx-label); font: 400 14px/20px var(--xx-font);
+         -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
+  input, textarea { -webkit-user-select: text; user-select: text; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding-block: 24px 64px; display: flex; flex-direction: column; gap: 40px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  section { display: flex; flex-direction: column; gap: 12px; }
+  section > h2 { margin: 0; }
+  section > p { margin: 0; color: var(--xx-label-secondary); max-width: 70ch; }
+  .stage { border-radius: var(--xx-radius-l); padding: 32px 24px; background: var(--xx-surface);
+           display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 class="xx-text-title">THEME NAME Kit</h1>
+    <p class="xx-text-body">Every component in the THEME-ID theme, live.</p>
+  </header>
+
+  <div class="bar" role="toolbar" aria-label="Preview settings">
+    <button class="xx-btn" data-theme-set="">Auto</button>
+    <button class="xx-btn" data-theme-set="light">Light</button>
+    <button class="xx-btn" data-theme-set="dark">Dark</button>
+  </div>
+
+  <!-- One section per component group: Typography, Colour, Buttons, Inputs, Navigation,
+       Toolbar, Menus and dialogs, Motion, Everything together. -->
+  <section>
+    <h2 class="xx-text-title">Buttons</h2>
+    <p>What the platform says buttons should do, in one or two sentences.</p>
+    <div class="stage">
+      <button class="xx-btn">Default</button>
+      <button class="xx-btn xx-btn--primary">Primary</button>
+      <button class="xx-btn" disabled>Disabled</button>
+    </div>
+  </section>
+</div>
+
+<script>
+  document.addEventListener("dragstart", (e) => e.preventDefault());
+  document.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => {
+    const v = b.dataset.themeSet;
+    v ? document.documentElement.setAttribute("data-theme", v) : document.documentElement.removeAttribute("data-theme");
+  }));
+</script>
+</body>
+</html>

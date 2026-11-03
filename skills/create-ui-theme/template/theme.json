@@ -1,0 +1,12 @@
+{
+  "id": "THEME-ID",
+  "name": "THEME NAME",
+  "version": "0.1.0",
+  "prefix": "xx-",
+  "files": ["assets/THEME-ID.css"],
+  "css": ["THEME-ID.css"],
+  "js": [],
+  "init": "",
+  "gallery": "assets/gallery.html",
+  "specs": "references/specs.md"
+}

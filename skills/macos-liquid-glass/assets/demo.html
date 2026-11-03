@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liquid Glass Demo</title>
+<link rel="stylesheet" href="liquid-glass.css">
+<style>
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 40px 16px;
+    box-sizing: border-box; font-family: var(--lg-font);
+    /* wallpaper: glass needs colour behind it */
+    background:
+      radial-gradient(60% 80% at 10% 10%, #ff9a62 0, transparent 60%),
+      radial-gradient(50% 70% at 90% 20%, #7b6cff 0, transparent 60%),
+      radial-gradient(70% 70% at 60% 100%, #1fc2c8 0, transparent 60%),
+      #3a3f6b;
+  }
+  .lg-window { width: min(1040px, 100%); height: min(680px, 86vh); }
+  .controls { display: flex; gap: 6px; margin-left: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+  .tile { aspect-ratio: 4 / 3; border-radius: 14px; position: relative; overflow: hidden; }
+  .tile span { position: absolute; left: 12px; bottom: 10px; color: #fff; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,.4); }
+  .hero { height: 260px; border-radius: 18px; margin-bottom: 24px; position: relative; overflow: hidden;
+    background: radial-gradient(circle at 30% 40%, #ffe08a, #ff6b6b 40%, #6a3dff 80%); }
+  .hero .player { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; gap: 8px; }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; }
+  h2 { font-size: 17px; font-weight: 600; margin: 28px 0 12px; }
+  p.sub { color: var(--lg-label-secondary); margin: 0 0 20px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--lg-separator); }
+  .settings { max-width: 520px; }
+  .popover-anchor { position: relative; }
+  .popover-anchor .lg-popover { position: absolute; right: 0; top: 46px; --lg-origin: top right; }
+  /* the menu pours out of its button: a liquid outline that grows from button size and materializes in */
+  .menu-host { position: absolute; right: 0; top: 46px; width: 220px; height: 112px; pointer-events: none; z-index: 5; }
+  .menu-host[data-open] { pointer-events: auto; }
+  .menu-host > .lg-glass { position: absolute; inset: -24px; border-radius: 0; box-shadow: none; padding: 30px; box-sizing: border-box; display: flex; flex-direction: column; }
+  .menu-host .lq-shadow { position: absolute; inset: -24px; filter: blur(9px); transform: translateY(5px); opacity: 0.5; transition: opacity 200ms ease; pointer-events: none; }
+  .menu-host .lq-shadow i { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); }
+  .menu-host:not([data-open]) .lq-shadow { opacity: 0; }
+  .menu-host .lg-menu-item { opacity: 0; transition: opacity 140ms ease; }
+  .menu-host[data-open] .lg-menu-item { opacity: 1; transition-delay: 80ms; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="lg-window" id="win">
+  <aside class="lg-sidebar lg-glass" data-lg-optics>
+    <div class="lg-sidebar-header">
+      <div class="lg-traffic" aria-label="Window controls">
+        <button class="close" aria-label="Close"><svg viewBox="0 0 8 8"><path d="M1.5 1.5l5 5M6.5 1.5l-5 5"/></svg></button>
+        <button class="min" aria-label="Minimise"><svg viewBox="0 0 8 8"><path d="M1 4h6"/></svg></button>
+        <button class="zoom" aria-label="Zoom"><svg viewBox="0 0 8 8"><path d="M2 6V2h4M6 2v4H2" fill="none"/></svg></button>
+      </div>
+    </div>
+    <div class="lg-section-title">Library</div>
+    <button class="lg-sidebar-item is-selected"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>All Items</button>
+    <button class="lg-sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Recents</button>
+    <button class="lg-sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 21s-7-4.5-7-11a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 6.5-7 11-7 11z"/></svg>Favourites</button>
+    <div class="lg-section-title">Collections</div>
+    <button class="lg-sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Travel</button>
+    <button class="lg-sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Projects</button>
+  </aside>
+
+  <div class="lg-scroll-edge-top"></div>
+
+  <header class="lg-toolbar">
+    <div class="lg-group lg-glass" data-lg-optics>
+      <button class="lg-btn lg-btn--icon" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <button class="lg-btn lg-btn--icon" aria-label="Forward"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18l6-6-6-6"/></svg></button>
+    </div>
+    <span class="lg-toolbar-title">All Items</span>
+    <span class="lg-spacer"></span>
+    <div class="lg-group lg-glass" data-lg-optics>
+      <button class="lg-btn lg-btn--icon" aria-label="Share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg></button>
+      <button class="lg-btn lg-btn--icon" aria-label="Favourite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21s-7-4.5-7-11a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 6.5-7 11-7 11z"/></svg></button>
+      <span class="popover-anchor">
+        <button class="lg-btn lg-btn--icon" aria-label="More" aria-haspopup="menu" id="moreBtn"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+        <div class="menu-host" id="menuHost">
+          <div class="lq-shadow"><i></i></div>
+          <div class="lg-glass" data-lg-optics role="menu" id="menu">
+          <button class="lg-menu-item" role="menuitem">New Collection<kbd>⌘N</kbd></button>
+          <button class="lg-menu-item" role="menuitem">Duplicate<kbd>⌘D</kbd></button>
+          <div class="lg-menu-sep"></div>
+          <button class="lg-menu-item" role="menuitem" id="openSheet">Settings…<kbd>⌘,</kbd></button>
+          </div>
+        </div>
+      </span>
+    </div>
+    <label class="lg-search lg-glass" data-lg-optics>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      <input type="search" placeholder="Search" aria-label="Search">
+    </label>
+  </header>
+
+  <main class="lg-content">
+    <h1>All Items</h1>
+    <p class="sub">128 items</p>
+
+    <div class="hero">
+      <!-- clear glass: only over rich media -->
+      <div class="player">
+        <button class="lg-btn lg-btn--icon lg-glass lg-glass--clear" data-lg-optics aria-label="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM20 6v12l-10-6z"/></svg></button>
+        <button class="lg-btn lg-btn--icon lg-glass lg-glass--clear" data-lg-optics aria-label="Play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="lg-btn lg-btn--icon lg-glass lg-glass--clear" data-lg-optics aria-label="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM4 6v12l10-6z"/></svg></button>
+      </div>
+    </div>
+
+    <div class="lg-segmented" style="--n:3; --i:0" id="seg">
+      <span class="lg-thumb"></span>
+      <button>Grid</button><button>List</button><button>Columns</button>
+    </div>
+
+    <h2>Recent</h2>
+    <div class="grid" id="grid"></div>
+
+    <h2>Options</h2>
+    <div class="settings">
+      <div class="row">Show previews <span class="lg-toggle"><input type="checkbox" checked aria-label="Show previews"><span class="track"></span><span class="knob"></span></span></div>
+      <div class="row">Sync <span class="lg-toggle"><input type="checkbox" aria-label="Sync"><span class="track"></span><span class="knob"></span></span></div>
+      <div class="row">Thumbnail size <input class="lg-slider" type="range" style="max-width:220px" aria-label="Thumbnail size"></div>
+    </div>
+  </main>
+
+  <div class="lg-sheet-backdrop" id="sheet" hidden>
+    <div class="lg-sheet lg-glass lg-pop-in" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <h2 id="sheetTitle" style="margin-top:0">Settings</h2>
+      <p class="sub">Changes apply to every collection.</p>
+      <div class="row">Automatic backups <span class="lg-toggle"><input type="checkbox" checked aria-label="Automatic backups"><span class="track"></span><span class="knob"></span></span></div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px">
+        <button class="lg-btn" style="background:var(--lg-fill-control)" id="cancel">Cancel</button>
+        <button class="lg-btn lg-btn--prominent" id="done">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="liquid-glass.js"></script>
+<script>
+  const hues = [[18, 60], [260, 320], [180, 220], [330, 20], [40, 90], [200, 280], [140, 190], [290, 350]];
+  document.getElementById("grid").innerHTML = hues.concat(hues).map(([a, b], i) =>
+    `<div class="tile" style="background:linear-gradient(135deg,hsl(${a} 85% 62%),hsl(${b} 75% 45%))"><span>Item ${i + 1}</span></div>`).join("");
+
+  const seg = document.getElementById("seg");
+  seg.querySelectorAll("button").forEach((b, i) => b.onclick = () => seg.style.setProperty("--i", i));
+
+  document.querySelectorAll(".lg-slider").forEach(s => {
+    const set = () => s.style.setProperty("--v", ((s.value - (s.min || 0)) / ((s.max || 100) - (s.min || 0))) * 100 + "%");
+    s.addEventListener("input", set); set();
+  });
+
+  LiquidGlass.init();
+  const sheet = document.getElementById("sheet"), menuHost = document.getElementById("menuHost"), menu = document.getElementById("menu");
+  const MW = 220, MH = 112;
+  const ctl = LiquidGlass.morph(menu, { host: menuHost, shadow: menuHost.querySelector(".lq-shadow i"), pad: 24,
+    closed: { x: MW - 36, y: 0, w: 36, h: 30 }, open: { x: 0, y: 0, w: MW, h: MH, r: 14 } });
+  menu._lgK = 0; menu.hidden = true;
+  // glass can't see through other glass: hang the menu off the toolbar, not inside the button's glass group
+  const moreBtn = document.getElementById("moreBtn"), bar = document.querySelector(".lg-toolbar");
+  bar.appendChild(menuHost);
+  const placeMenu = () => { const b = moreBtn.getBoundingClientRect(), t = bar.getBoundingClientRect();
+    menuHost.style.left = b.right - t.left - MW + "px"; menuHost.style.top = b.bottom - t.top + 8 + "px"; menuHost.style.right = "auto"; };
+  placeMenu(); addEventListener("resize", placeMenu);
+  const setMenu = (o) => { if (o === ctl.isOpen) return; o ? ctl.open() : ctl.close(); LiquidGlass.materialize(menu, o, o ? 200 : 160); };
+  document.getElementById("moreBtn").onclick = e => { e.stopPropagation(); setMenu(!ctl.isOpen); };
+  menuHost.addEventListener("click", e => e.stopPropagation());
+  menu.querySelectorAll(".lg-menu-item").forEach(i => i.addEventListener("click", () => setMenu(false)));
+  document.addEventListener("click", () => setMenu(false));
+  document.getElementById("openSheet").onclick = () => { sheet.hidden = false; };
+  ["cancel", "done"].forEach(id => document.getElementById(id).onclick = () => sheet.hidden = true);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { setMenu(false); sheet.hidden = true; } });
+</script>
+</body>
+</html>

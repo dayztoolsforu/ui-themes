@@ -1,0 +1,11 @@
+{
+  "name": "ui-themes",
+  "displayName": "UI Themes",
+  "version": "0.2.1",
+  "description": "Drop-in UI themes for web apps, each with researched platform specs, a component kit, a live gallery and a one-step installer. Ships macOS Liquid Glass and a template for building new themes the same way.",
+  "author": { "name": "dayztoolsforu", "url": "https://github.com/dayztoolsforu" },
+  "homepage": "https://github.com/dayztoolsforu/ui-themes",
+  "repository": "https://github.com/dayztoolsforu/ui-themes",
+  "license": "MIT",
+  "keywords": ["ui", "theme", "design-system", "css", "macos", "liquid-glass", "web"]
+}

@@ -1,0 +1,68 @@
+/* THEME NAME — drop-in theme. Rename to THEME-ID.css and replace xx- with the theme's prefix.
+   Every value comes from references/specs.md (V = stated by the source, E = estimate). */
+
+/* ---------- Tokens: light on :root, dark redefines, increased contrast redefines ---------- */
+:root {
+  color-scheme: light dark;
+  --xx-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* colour */
+  --xx-bg: #ffffff;
+  --xx-surface: #f4f4f6;
+  --xx-label: rgba(0, 0, 0, 0.87);
+  --xx-label-secondary: rgba(0, 0, 0, 0.6);
+  --xx-separator: rgba(0, 0, 0, 0.12);
+  --xx-accent: #0066cc;
+  --xx-accent-label: #ffffff;
+
+  /* shape */
+  --xx-radius-s: 6px;
+  --xx-radius-m: 12px;
+  --xx-radius-l: 20px;
+
+  /* control sizes */
+  --xx-size-s: 28px;
+  --xx-size-m: 36px;
+  --xx-size-l: 44px;
+
+  /* motion: platform springs sampled to linear(), with their settle times */
+  --xx-ease: cubic-bezier(0.2, 0, 0, 1);
+  --xx-dur: 300ms;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --xx-bg: #121214; --xx-surface: #1c1c1f;
+    --xx-label: rgba(255, 255, 255, 0.87); --xx-label-secondary: rgba(255, 255, 255, 0.6);
+    --xx-separator: rgba(255, 255, 255, 0.12); --xx-accent: #66aaff; --xx-accent-label: #000000;
+  }
+}
+:root[data-theme="dark"] {
+  --xx-bg: #121214; --xx-surface: #1c1c1f;
+  --xx-label: rgba(255, 255, 255, 0.87); --xx-label-secondary: rgba(255, 255, 255, 0.6);
+  --xx-separator: rgba(255, 255, 255, 0.12); --xx-accent: #66aaff; --xx-accent-label: #000000;
+}
+@media (prefers-contrast: more) {
+  :root { --xx-label-secondary: var(--xx-label); --xx-separator: currentColor; }
+}
+
+/* ---------- Typography: the platform's text styles, one class each ---------- */
+.xx-text-title { font: 600 22px/28px var(--xx-font); }
+.xx-text-body  { font: 400 14px/20px var(--xx-font); }
+.xx-text-caption { font: 400 12px/16px var(--xx-font); }
+
+/* ---------- Components (tokens only) ---------- */
+.xx-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: var(--xx-size-m); padding: 0 16px; border: 0; border-radius: var(--xx-radius-s);
+  background: var(--xx-surface); color: var(--xx-label); font: 500 14px/1 var(--xx-font);
+  transition: background var(--xx-dur) var(--xx-ease), transform var(--xx-dur) var(--xx-ease);
+}
+.xx-btn--primary { background: var(--xx-accent); color: var(--xx-accent-label); }
+.xx-btn:focus-visible { outline: 2px solid var(--xx-accent); outline-offset: 2px; }
+.xx-btn:disabled { opacity: 0.4; pointer-events: none; }
+
+/* ---------- Behaviour: app-like chrome, accessible motion ---------- */
+:where(.xx-btn) { -webkit-user-select: none; user-select: none; }
+@media (prefers-reduced-motion: reduce) {
+  .xx-btn { transition-duration: 1ms; }
+}
